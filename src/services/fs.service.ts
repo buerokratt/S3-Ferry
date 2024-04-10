@@ -1,13 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
-
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { LocalFilesListMetaDto } from '../dtos';
-import { FileDto } from '../dtos/file.dto';
-import { AppConfig } from 'src/interfaces';
-import { appConfigFactory } from 'src/config/app-config.factory';
-import { DataWithMetaResponseDto } from 'src/common/dtos';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { DataWithMetaResponseDto } from '../common/dtos';
+import { appConfigFactory } from '../config';
+import { FileDto, LocalFilesListMetaDto } from '../dtos';
+import { AppConfig } from '../interfaces';
 
 @Injectable()
 export class FsService {
@@ -18,18 +17,20 @@ export class FsService {
   listFiles(): DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto> {
     const files: FileDto[] = [];
 
-    for (const file of fs.readdirSync(this.config.localDirectoryName)) {
+    for (const file of fs.readdirSync(this.config.fsDataDirectoryPath)) {
       const fileStats = fs.statSync(
-        path.join(this.config.localDirectoryName, file),
+        path.join(this.config.fsDataDirectoryPath, file),
       );
 
-      files.push(
-        new FileDto({
-          name: file,
-          size: fileStats.size,
-          lastModified: fileStats.mtime,
-        }),
-      );
+      if (fileStats.isFile()) {
+        files.push(
+          new FileDto({
+            name: file,
+            size: fileStats.size,
+            lastModified: fileStats.mtime,
+          }),
+        );
+      }
     }
 
     return { data: files, meta: { count: files.length } };

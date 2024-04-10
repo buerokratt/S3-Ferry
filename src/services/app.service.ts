@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { CopyFileBodyDto, LocalFilesListMetaDto } from 'src/dtos';
-import { StorageType } from 'src/enums';
 import { FsService } from './fs.service';
 import { S3Service } from './s3.service';
-import { DataWithMetaResponseDto } from 'src/common/dtos';
-import { FileDto } from 'src/dtos/file.dto';
+import { DataWithMetaResponseDto } from '../common/dtos';
+import { CopyFileBodyDto, FileDto, LocalFilesListMetaDto } from '../dtos';
+import { StorageType } from '../enums';
 
 @Injectable()
 export class AppService {

@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  api:
+    build: './'
+    restart: 'always'
+    container_name: 'buerokratt-s3-ferry'
+    ports:
+      - 3000:3000
+    env_file:
+      - config/development.env
+    volumes:
+      - ./data:/api/data
+    environment:
+      - S3_ENDPOINT_URL=http://localstack:4566
+  localstack:
+    image: localstack/localstack:3.3.0
+    ports:
+      - 4566:4566
+    environment:
+      - SERVICES=s3:4566
+    volumes:
+      - ./localstack-init.sh:/etc/localstack/init/ready.d/init.sh

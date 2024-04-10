@@ -1,16 +1,18 @@
-import * as Joi from 'joi';
+import * as joi from 'joi';
 
 const schema = {
   // TODO: Allow only * or comma separated URIs
-  API_CORS_ORIGIN: Joi.string().required(),
-  API_DOCUMENTATION_ENABLED: Joi.boolean().required(),
+  API_CORS_ORIGIN: joi.string().required(),
+  API_DOCUMENTATION_ENABLED: joi.boolean().required(),
 
-  AWS_PROFILE: Joi.string().required(),
-  S3_DATA_BUCKET_NAME: Joi.string().required(),
-  S3_DATA_BUCKET_PATH: Joi.string().allow(''),
-  S3_ENDPOINT_URL: Joi.string().uri().required(),
+  S3_ACCESS_KEY_ID: joi.string().required(),
+  S3_SECRET_ACCESS_KEY: joi.string().required(),
+  S3_DATA_BUCKET_NAME: joi.string().required(),
+  S3_DATA_BUCKET_PATH: joi.string().allow(''),
+  S3_ENDPOINT_URL: joi.string().uri().required(),
+  S3_REGION: joi.string().required(),
 
-  LOCAL_DIRECTORY_NAME: Joi.string().required(),
+  FS_DATA_DIRECTORY_PATH: joi.string().required(),
 };
 
-export const appConfigSchema = Joi.object<typeof schema>(schema);
+export const appConfigSchema = joi.object<typeof schema>(schema);

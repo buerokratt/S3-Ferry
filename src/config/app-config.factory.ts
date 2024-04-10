@@ -1,8 +1,9 @@
 import { registerAs } from '@nestjs/config';
 
 import { ConfigUtil } from '../common/utils';
-import { AppConfig } from 'src/interfaces';
-import { appConfigSchema } from './app-config.schema';
+import { AppConfig } from '../interfaces';
+
+import { appConfigSchema } from './';
 
 export const appConfigFactory = registerAs('api', (): AppConfig => {
   const env = ConfigUtil.validate(appConfigSchema);
@@ -11,12 +12,14 @@ export const appConfigFactory = registerAs('api', (): AppConfig => {
     corsOrigin: split(<string>env['API_CORS_ORIGIN']),
     documentationEnabled: <boolean>env['API_DOCUMENTATION_ENABLED'],
 
-    awsProfile: <string>env['AWS_PROFILE'],
+    s3AccessKeyId: <string>env['S3_ACCESS_KEY_ID'],
+    s3SecretAccessKey: <string>env['S3_SECRET_ACCESS_KEY'],
     s3DataBucketName: <string>env['S3_DATA_BUCKET_NAME'],
     s3DataBucketPath: <string>env['S3_DATA_BUCKET_PATH'],
     s3EndpointUrl: <string>env['S3_ENDPOINT_URL'],
+    s3Region: <string>env['S3_REGION'],
 
-    localDirectoryName: <string>env['LOCAL_DIRECTORY_NAME'],
+    fsDataDirectoryPath: <string>env['FS_DATA_DIRECTORY_PATH'],
   };
 });
 

@@ -1,13 +1,14 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
-import { AppService } from './services/app.service';
+
+import { ApiOkDataWithMetaResponse } from './common/decorators';
+import { DataWithMetaResponseDto } from './common/dtos';
 import {
   CopyFileBodyDto,
+  FileDto,
   ListFilesQueryDto,
   LocalFilesListMetaDto,
 } from './dtos';
-import { ApiOkDataWithMetaResponse } from './common/decorators';
-import { DataWithMetaResponseDto } from './common/dtos';
-import { FileDto } from './dtos/file.dto';
+import { AppService } from './services';
 
 @Controller('/files')
 export class AppController {
