@@ -1,0 +1,33 @@
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { appConfigFactory } from './config/app-config.factory';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  const apiConfig = app.get(appConfigFactory.KEY);
+  app.enableCors({ origin: apiConfig.corsOrigin });
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+
+  if (apiConfig.documentationEnabled) {
+    const config = new DocumentBuilder()
+      .addBearerAuth({ in: 'header', type: 'http' })
+      .setTitle('API Documentation')
+      .setVersion('1.0.0')
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('documentation', app, document, {
+      swaggerOptions: {
+        operationsSorter: 'alpha',
+        persistAuthorization: true,
+        tagsSorter: 'alpha',
+      },
+    });
+  }
+
+  await app.listen(3000);
+}
+bootstrap();
