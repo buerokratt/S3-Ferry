@@ -2,10 +2,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
 
-import { GetObjectCommand, PutObjectCommand, S3 } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  NoSuchKey,
+  PutObjectCommand,
+  S3,
+} from '@aws-sdk/client-s3';
 import { Inject, Injectable } from '@nestjs/common';
 
 import { DataWithMetaResponseDto } from '../common/dtos';
+import { FileNotFoundException } from '../common/exceptions';
 import { appConfigFactory } from '../config';
 import { FileDto, LocalFilesListMetaDto } from '../dtos';
 import { AppConfig } from '../interfaces';
@@ -22,7 +28,7 @@ export class S3Service {
         accessKeyId: config.s3AccessKeyId,
         secretAccessKey: config.s3SecretAccessKey,
       },
-      endpoint: config.s3EndpointUrl,
+      ...(config.s3EndpointUrl && { endpoint: config.s3EndpointUrl }),
       forcePathStyle: true,
       region: config.s3Region,
     });
@@ -38,13 +44,15 @@ export class S3Service {
 
     if (response.Contents) {
       for (const file of response.Contents) {
-        files.push(
-          new FileDto({
-            name: file.Key,
-            size: file.Size,
-            lastModified: file.LastModified,
-          }),
-        );
+        if (!file.Key?.includes('/')) {
+          files.push(
+            new FileDto({
+              name: file.Key,
+              size: file.Size,
+              lastModified: file.LastModified,
+            }),
+          );
+        }
       }
     }
 
@@ -62,7 +70,6 @@ export class S3Service {
           Key: path.join(this.config.s3DataBucketPath, sourceFilePath),
         }),
       );
-      if (!response.Body) throw new Error('Failed to get file from S3');
 
       (response.Body as Readable).pipe(
         fs.createWriteStream(
@@ -70,7 +77,9 @@ export class S3Service {
         ),
       );
     } catch (error) {
-      throw new Error(`Error copying file: ${error}`);
+      throw error instanceof NoSuchKey
+        ? new FileNotFoundException('File not found in S3')
+        : error;
     }
   }
 
@@ -78,6 +87,11 @@ export class S3Service {
     sourceFilePath: string,
     destinationFilePath: string,
   ): Promise<void> {
+    const fileExists = fs.existsSync(
+      path.join(this.config.fsDataDirectoryPath, sourceFilePath),
+    );
+    if (!fileExists) throw new FileNotFoundException('File not found in FS');
+
     await this.s3.send(
       new PutObjectCommand({
         Bucket: this.config.s3DataBucketName,

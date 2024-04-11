@@ -3,6 +3,10 @@ import { Injectable } from '@nestjs/common';
 import { FsService } from './fs.service';
 import { S3Service } from './s3.service';
 import { DataWithMetaResponseDto } from '../common/dtos';
+import {
+  FileNotFoundException,
+  InternalServerException,
+} from '../common/exceptions';
 import { CopyFileBodyDto, FileDto, LocalFilesListMetaDto } from '../dtos';
 import { StorageType } from '../enums';
 
@@ -43,7 +47,9 @@ export class AppService {
           break;
       }
     } catch (error) {
-      throw new Error(`Error copying file: ${error}`);
+      throw error instanceof FileNotFoundException
+        ? new FileNotFoundException(error.message)
+        : new InternalServerException();
     }
   }
 }

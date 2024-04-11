@@ -10,7 +10,7 @@ import { appConfigFactory } from './config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const apiConfig = app.get(appConfigFactory.KEY);
-  app.enableCors({ origin: apiConfig.corsOrigin });
+  if (apiConfig.corsOrigin) app.enableCors({ origin: apiConfig.corsOrigin });
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
   if (apiConfig.documentationEnabled) {
