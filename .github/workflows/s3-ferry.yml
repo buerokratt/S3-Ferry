@@ -3,11 +3,9 @@ on:
   push:
     branches: [main]
     paths:
-    - .github/workflows/s3-ferry.yml
     - '**/*'
   pull_request:
     paths:
-      - .github/workflows/s3-ferry.yml
       - '**/*'
 defaults:
   run:
