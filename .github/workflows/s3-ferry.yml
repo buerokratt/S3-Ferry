@@ -1,14 +1,14 @@
 name: s3-ferry
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
     - .github/workflows/s3-ferry.yml
-    - *
+    - '**/*'
   pull_request:
     paths:
       - .github/workflows/s3-ferry.yml
-      - *
+      - '**/*'
 defaults:
   run:
     working-directory: .
