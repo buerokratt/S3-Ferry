@@ -1,7 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { HttpStatus, INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  HttpStatus,
+  INestApplication,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import * as request from 'supertest';
@@ -21,6 +26,7 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
+    app.enableVersioning({ type: VersioningType.URI });
     app.useGlobalPipes(
       new ValidationPipe({ transform: true, whitelist: true }),
     );
@@ -39,10 +45,10 @@ describe('AppController (e2e)', () => {
     await app.close();
   });
 
-  describe('GET /files', () => {
+  describe('GET /v1/files', () => {
     it('should list local files', async () => {
       const { body, status } = await request(app.getHttpServer())
-        .get('/files')
+        .get('/v1/files')
         .query({ type: StorageType.FS });
 
       expect(status).toBe(HttpStatus.OK);
@@ -64,10 +70,10 @@ describe('AppController (e2e)', () => {
         sourceStorageType: StorageType.FS,
       };
 
-      await request(app.getHttpServer()).post('/files/copy').send(data);
+      await request(app.getHttpServer()).post('/v1/files/copy').send(data);
 
       const { body, status } = await request(app.getHttpServer())
-        .get('/files')
+        .get('/v1/files')
         .query({ type: StorageType.S3 });
 
       expect(status).toBe(HttpStatus.OK);
@@ -82,7 +88,7 @@ describe('AppController (e2e)', () => {
     });
   });
 
-  describe('POST /files/copy', () => {
+  describe('POST /v1/files/copy', () => {
     it('should copy local file to remote', async () => {
       const data: CopyFileBodyDto = {
         destinationFilePath: 'file.txt',
@@ -92,7 +98,7 @@ describe('AppController (e2e)', () => {
       };
 
       const { status } = await request(app.getHttpServer())
-        .post('/files/copy')
+        .post('/v1/files/copy')
         .send(data);
 
       expect(status).toBe(HttpStatus.CREATED);
@@ -107,7 +113,7 @@ describe('AppController (e2e)', () => {
       };
 
       const { status } = await request(app.getHttpServer())
-        .post('/files/copy')
+        .post('/v1/files/copy')
         .send(data);
 
       expect(status).toBe(HttpStatus.CREATED);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Version } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 
 import { ApiOkDataWithMetaResponse } from './common/decorators';
@@ -21,6 +21,7 @@ export class AppController {
     return { data: 'S3 Ferry' };
   }
 
+  @Version('1')
   @Get('/files')
   @ApiOkDataWithMetaResponse({
     data: { type: FileDto, isArray: true },
@@ -33,6 +34,7 @@ export class AppController {
     return await this.appService.listFiles(query.type);
   }
 
+  @Version('1')
   @Post('/files/copy')
   @ApiOperation({ summary: 'Copy file from source to destination' })
   async copyFile(@Body() data: CopyFileBodyDto): Promise<void> {
