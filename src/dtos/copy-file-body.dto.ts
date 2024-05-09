@@ -1,20 +1,18 @@
-import { Transform } from 'class-transformer';
 import { IsEnum, IsString, Validate } from 'class-validator';
 
-import { NormalizeFilePath } from '../common/transformers';
-import { UniqueValuesConstraint } from '../common/validators';
+import { PathConstraint, UniqueValuesConstraint } from '../common/validators';
 import { StorageType } from '../enums';
 
 export class CopyFileBodyDto {
   @IsString()
-  @Transform(NormalizeFilePath)
+  @Validate(PathConstraint)
   readonly destinationFilePath: string;
 
   @IsEnum(StorageType)
   readonly destinationStorageType: StorageType;
 
   @IsString()
-  @Transform(NormalizeFilePath)
+  @Validate(PathConstraint)
   readonly sourceFilePath: string;
 
   @IsEnum(StorageType)
