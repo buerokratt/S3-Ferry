@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query, Version } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  UseInterceptors,
+  Version,
+} from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 
 import { ApiOkDataWithMetaResponse } from './common/decorators';
@@ -9,9 +17,11 @@ import {
   ListFilesQueryDto,
   LocalFilesListMetaDto,
 } from './dtos';
+import { RequestLogger } from './interceptor';
 import { AppService } from './services';
 
 @Controller('')
+@UseInterceptors(RequestLogger)
 export class AppController {
   constructor(private readonly appService: AppService) {}
 

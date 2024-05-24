@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { FsService } from './fs.service';
 import { S3Service } from './s3.service';
@@ -12,6 +12,8 @@ import { StorageType } from '../enums';
 
 @Injectable()
 export class AppService {
+  private readonly logger = new Logger(AppService.name);
+
   constructor(
     private readonly fsService: FsService,
     private readonly s3Service: S3Service,
@@ -20,12 +22,17 @@ export class AppService {
   async listFiles(
     storageType: StorageType,
   ): Promise<DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto>> {
-    switch (storageType) {
-      case StorageType.FS:
-        return this.fsService.listFiles();
+    try {
+      switch (storageType) {
+        case StorageType.FS:
+          return this.fsService.listFiles();
 
-      case StorageType.S3:
-        return await this.s3Service.listFiles();
+        case StorageType.S3:
+          return await this.s3Service.listFiles();
+      }
+    } catch (error) {
+      this.logger.error(`Listing files failed: ${error.stack}`);
+      throw error;
     }
   }
 
@@ -47,6 +54,7 @@ export class AppService {
           break;
       }
     } catch (error) {
+      this.logger.error(`Copying files failed: ${error.stack}`);
       throw error instanceof FileNotFoundException
         ? new FileNotFoundException(error.message)
         : new InternalServerException();
