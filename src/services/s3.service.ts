@@ -71,11 +71,16 @@ export class S3Service {
         }),
       );
 
-      (response.Body as Readable).pipe(
-        fs.createWriteStream(
-          path.join(this.config.fsDataDirectoryPath, destinationFilePath),
-        ),
+      const writeStream = fs.createWriteStream(
+        path.join(this.config.fsDataDirectoryPath, destinationFilePath),
       );
+
+      await new Promise<void>((resolve, reject) => {
+        (response.Body as Readable)
+          .pipe(writeStream)
+          .on('finish', resolve)
+          .on('error', reject);
+      });
     } catch (error) {
       throw error instanceof NoSuchKey
         ? new FileNotFoundException('File not found in S3')
