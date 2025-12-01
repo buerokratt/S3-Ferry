@@ -204,12 +204,11 @@ describe('AppController (e2e)', () => {
       expect(status).toBe(HttpStatus.CREATED);
 
       // Verify files were created in the correct accounts
-      const account1ConnectionString =
-        'DefaultEndpointsProtocol=http;AccountName=testaccount1;AccountKey=dGVzdGtleTE9PQ==;BlobEndpoint=http://127.0.0.1:10000/testaccount1;QueueEndpoint=http://127.0.0.1:10001/testaccount1;TableEndpoint=http://127.0.0.1:10002/testaccount1;';
-      const account2ConnectionString =
-        'DefaultEndpointsProtocol=http;AccountName=testaccount2;AccountKey=dGVzdGtleTI9PQ==;BlobEndpoint=http://127.0.0.1:10000/testaccount2;QueueEndpoint=http://127.0.0.1:10001/testaccount2;TableEndpoint=http://127.0.0.1:10002/testaccount2;';
-      const account3ConnectionString =
-        'DefaultEndpointsProtocol=http;AccountName=testaccount3;AccountKey=dGVzdGtleTM9PQ==;BlobEndpoint=http://127.0.0.1:10000/testaccount3;QueueEndpoint=http://127.0.0.1:10001/testaccount3;TableEndpoint=http://127.0.0.1:10002/testaccount3;';
+      // Use connection strings from environment (works in both local and CI)
+      const azuriteHost = process.env.AZURITE_HOST || '127.0.0.1';
+      const account1ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount1;AccountKey=dGVzdGtleTE9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount1;QueueEndpoint=http://${azuriteHost}:10001/testaccount1;TableEndpoint=http://${azuriteHost}:10002/testaccount1;`;
+      const account2ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount2;AccountKey=dGVzdGtleTI9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount2;QueueEndpoint=http://${azuriteHost}:10001/testaccount2;TableEndpoint=http://${azuriteHost}:10002/testaccount2;`;
+      const account3ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount3;AccountKey=dGVzdGtleTM9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount3;QueueEndpoint=http://${azuriteHost}:10001/testaccount3;TableEndpoint=http://${azuriteHost}:10002/testaccount3;`;
 
       // Check account 1
       const blobServiceClient1 = BlobServiceClient.fromConnectionString(

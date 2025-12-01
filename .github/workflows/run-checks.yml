@@ -1,0 +1,95 @@
+name: Run checks
+on:
+    push:
+        branches: [main, dev]
+        paths:
+            - "src/**"
+            - "test/**"
+            - "config/**"
+            - ".github/**"
+            - "package.json"
+            - "package-lock.json"
+    pull_request:
+        types: [opened, ready_for_review, reopened, synchronize]
+        paths:
+            - "src/**"
+            - "test/**"
+            - "config/**"
+            - ".github/**"
+            - "package.json"
+            - "package-lock.json"
+concurrency:
+    group: ${{ github.ref }}-checks
+    cancel-in-progress: true
+
+jobs:
+    format-check:
+        uses: ./.github/workflows/run-check.yml
+        with:
+            command: npm run format:check
+
+    lint-check:
+        uses: ./.github/workflows/run-check.yml
+        with:
+            command: npm run lint:check
+
+    test:
+        uses: ./.github/workflows/run-check.yml
+        with:
+            command: npm run test
+
+    test-e2e:
+        if: github.event.pull_request.draft == false
+        runs-on: ubuntu-latest
+        container: node:24.11.0-alpine
+        timeout-minutes: 15
+        services:
+            localstack:
+                image: localstack/localstack:3.3.0
+                options: --name localstack
+                env:
+                    SERVICES: "s3:4566"
+                ports:
+                    - 4566:4566
+            azurite:
+                image: mcr.microsoft.com/azure-storage/azurite:latest
+                options: --name azurite
+                env:
+                    AZURITE_ACCOUNTS: "testaccount1:dGVzdGtleTE9PQ==;testaccount2:dGVzdGtleTI9PQ==;testaccount3:dGVzdGtleTM9PQ=="
+                ports:
+                    - 10000:10000
+                    - 10001:10001
+                    - 10002:10002
+        steps:
+            - uses: actions/checkout@v4
+            - name: Add build dependencies
+              run: apk add --update --no-progress tar docker
+            - uses: actions/cache@v4
+              with:
+                  path: ~/.npm
+                  key: npm-${{ hashFiles('package-lock.json') }}
+                  restore-keys: |
+                      npm-
+            - name: Create LocalStack bucket
+              run: |
+                  apk add --update --no-progress aws-cli
+                  sleep 5
+                  aws --endpoint-url=http://localstack:4566 s3 mb s3://buerokratt || true
+            - name: Update test.env for services
+              run: |
+                  sed -i 's|http://localhost:4566|http://localstack:4566|g' config/test.env
+                  sed -i 's|http://127.0.0.1:10000|http://azurite:10000|g' config/test.env
+                  sed -i 's|http://127.0.0.1:10001|http://azurite:10001|g' config/test.env
+                  sed -i 's|http://127.0.0.1:10002|http://azurite:10002|g' config/test.env
+            - name: Set Azurite host for tests
+              run: echo "AZURITE_HOST=azurite" >> $GITHUB_ENV
+            - run: npm ci
+            - run: npm run test:e2e
+
+    build:
+        if: github.event.pull_request.draft == false
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v4
+            - run: docker build .
