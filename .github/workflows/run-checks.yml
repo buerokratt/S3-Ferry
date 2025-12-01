@@ -67,23 +67,11 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Create LocalStack bucket
-        uses: docker://docker
-        with:
-          args: docker exec localstack /bin/sh -c "awslocal s3 mb s3://buerokratt"
-      # - name: Create LocalStack bucket
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y awscli
-      #     sleep 5
-      #     aws --endpoint-url=http://localstack:4566 s3 mb s3://buerokratt || true
-      - name: Update test.env for services
         run: |
-          sed -i 's|http://localhost:4566|http://localstack:4566|g' config/test.env
-          sed -i 's|http://127.0.0.1:10000|http://azurite:10000|g' config/test.env
-          sed -i 's|http://127.0.0.1:10001|http://azurite:10001|g' config/test.env
-          sed -i 's|http://127.0.0.1:10002|http://azurite:10002|g' config/test.env
-      - name: Set Azurite host for tests
-        run: echo "AZURITE_HOST=azurite" >> $GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y awscli
+          sleep 5
+          aws --endpoint-url=http://localhost:4566 s3 mb s3://buerokratt || true
       - run: npm ci
       - run: npm run test:e2e
 
