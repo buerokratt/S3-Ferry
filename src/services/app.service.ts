@@ -112,9 +112,11 @@ export class AppService {
               data.content,
             );
           } else {
-            throw new BadRequestException(
-              `Storage type not supported for account: ${file.storageAccountId}`,
+            const errorMessage = `Storage type not supported for account: ${file.storageAccountId}`;
+            this.logger.error(
+              `${errorMessage}. Account ID format should start with 'azure-' for Azure storage.`,
             );
+            throw new BadRequestException(errorMessage);
           }
         }),
       );

@@ -70,7 +70,7 @@ jobs:
         run: |
           sudo snap install aws-cli --classic
           # todo sleep
-          sleep 5
+          # sleep 5
           aws --endpoint-url=http://localhost:4566 s3 mb s3://buerokratt || true
       - run: npm ci
       - run: npm run test:e2e
