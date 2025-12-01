@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { AzureAccountService, AzureBlobService } from '../azure/services';
 import {
@@ -99,7 +104,6 @@ export class AppService {
         data.files.map((file) => {
           // Infer storage type from account ID (e.g., "azure-account1" -> Azure, "s3-key" -> S3)
           if (file.storageAccountId.startsWith('azure-')) {
-            // todo to have default to first account or not?
             return this.azureBlobService.createBlob(
               file.storageAccountId,
               file.container,
@@ -107,17 +111,28 @@ export class AppService {
               data.content,
             );
           } else {
-            throw new Error(
+            throw new BadRequestException(
               `Storage type not supported for account: ${file.storageAccountId}`,
             );
           }
         }),
       );
     } catch (error) {
+      // Re-throw HTTP exceptions (BadRequestException, NotFoundException, etc.)
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      // Log and wrap unexpected errors
       this.logger.error(
         `Creating file failed: ${error instanceof Error ? error.stack : String(error)}`,
       );
-      throw error;
+      throw new InternalServerException(
+        `Failed to create file: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }

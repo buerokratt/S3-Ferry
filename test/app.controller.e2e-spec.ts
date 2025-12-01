@@ -207,7 +207,7 @@ describe('AppController (e2e)', () => {
       const data: CreateFileBodyDto = {
         files: [
           {
-            storageAccountId: 'invalid-account',
+            storageAccountId: 'azure-nonexistent-account',
             container: 'test-container',
             fileName: 'test-file.txt',
           },
@@ -215,11 +215,56 @@ describe('AppController (e2e)', () => {
         content: 'Hello, World!',
       };
 
-      const { status } = await request(app.getHttpServer())
+      const { status, body } = await request(app.getHttpServer())
         .post('/v1/files/create')
         .send(data);
 
-      expect(status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(status).toBe(HttpStatus.NOT_FOUND);
+      expect(body.message).toContain('Storage account not found');
+      expect(body.message).toContain('azure-nonexistent-account');
+    });
+
+    it('should fail with unsupported storage type', async () => {
+      const data: CreateFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 's3-invalid-account',
+            container: 'test-container',
+            fileName: 'test-file.txt',
+          },
+        ],
+        content: 'Hello, World!',
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/create')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toContain('Storage type not supported');
+      expect(body.message).toContain('s3-invalid-account');
+    });
+
+    it('should fail when container does not exist', async () => {
+      const data: CreateFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'nonexistent-container',
+            fileName: 'test-file.txt',
+          },
+        ],
+        content: 'Hello, World!',
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/create')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.NOT_FOUND);
+      expect(body.message).toContain('Container not found');
+      expect(body.message).toContain('nonexistent-container');
+      expect(body.message).toContain('azure-testaccount1');
     });
   });
 });

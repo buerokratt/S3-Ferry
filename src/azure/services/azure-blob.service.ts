@@ -1,5 +1,5 @@
 import { BlobServiceClient } from '@azure/storage-blob';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 
 import { azureConfigFactory } from '../config';
 import { AzureConfig } from '../config/azure.config.interface';
@@ -18,7 +18,9 @@ export class AzureBlobService {
   ): Promise<void> {
     const account = this.config.accounts.get(storageAccountId);
     if (!account) {
-      throw new Error(`Storage account not found: ${storageAccountId}`);
+      throw new NotFoundException(
+        `Storage account not found: ${storageAccountId}`,
+      );
     }
 
     const blobServiceClient = BlobServiceClient.fromConnectionString(
@@ -26,24 +28,12 @@ export class AzureBlobService {
     );
     const containerClient = blobServiceClient.getContainerClient(containerName);
 
-    // // Ensure the container exists
-    // // Ignore 409 (Conflict) errors as they mean the container already exists
-    // try {
-    //   await containerClient.createIfNotExists();
-    // } catch (error: unknown) {
-    //   // If it's a RestError with statusCode 409, the container already exists - that's fine
-    //   if (
-    //     error &&
-    //     typeof error === 'object' &&
-    //     'statusCode' in error &&
-    //     error.statusCode === 409
-    //   ) {
-    //     // Container already exists, continue
-    //   } else {
-    //     // Re-throw other errors (including 404 which might indicate account doesn't exist)
-    //     throw error;
-    //   }
-    // }
+    const containerExists = await containerClient.exists();
+    if (!containerExists) {
+      throw new NotFoundException(
+        `Container not found: ${containerName} in storage account: ${storageAccountId}`,
+      );
+    }
 
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
