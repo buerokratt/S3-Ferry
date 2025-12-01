@@ -94,19 +94,25 @@ export class AppService {
 
   async createFile(data: CreateFileBodyDto): Promise<void> {
     try {
-      // Infer storage type from account ID (e.g., "azure-account1" -> Azure, "s3-key" -> S3)
-      if (data.storageAccountId.startsWith('azure-')) {
-        await this.azureBlobService.createBlob(
-          data.storageAccountId,
-          data.container,
-          data.fileName,
-          data.content,
-        );
-      } else {
-        throw new Error(
-          `Storage type not supported for account: ${data.storageAccountId}`,
-        );
-      }
+      // Create files at all specified locations with the same content in parallel
+      await Promise.all(
+        data.files.map((file) => {
+          // Infer storage type from account ID (e.g., "azure-account1" -> Azure, "s3-key" -> S3)
+          if (file.storageAccountId.startsWith('azure-')) {
+            // todo to have default to first account or not?
+            return this.azureBlobService.createBlob(
+              file.storageAccountId,
+              file.container,
+              file.fileName,
+              data.content,
+            );
+          } else {
+            throw new Error(
+              `Storage type not supported for account: ${file.storageAccountId}`,
+            );
+          }
+        }),
+      );
     } catch (error) {
       this.logger.error(
         `Creating file failed: ${error instanceof Error ? error.stack : String(error)}`,
