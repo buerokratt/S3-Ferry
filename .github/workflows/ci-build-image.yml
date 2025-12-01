@@ -4,7 +4,7 @@ on:
   push:
     branches: [dev]
     paths:
-      - ".env.img"
+      - '.env.img'
 
 jobs:
   PackageDeploy:

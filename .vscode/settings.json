@@ -4,7 +4,15 @@
     "source.fixAll.eslint": "explicit"
   },
   "typescript.preferences.organizeImports": false,
-  "[typescript][yaml][yml]": {
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[yml]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
   }
