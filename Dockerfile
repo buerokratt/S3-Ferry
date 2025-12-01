@@ -7,7 +7,7 @@ USER node
 # Dependencies
 FROM base as dependencies
 COPY .npmrc package*.json ./
-RUN npm ci --production
+RUN npm ci --omit=dev --ignore-scripts
 
 # Build
 FROM base AS build
