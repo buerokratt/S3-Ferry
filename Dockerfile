@@ -13,7 +13,7 @@ RUN npm ci --omit=dev --ignore-scripts
 FROM base AS build
 COPY package*.json tsconfig*.json nest-cli.json ./
 RUN npm ci
-COPY src ./api
+COPY src ./src
 RUN npm run build
 
 # Run
