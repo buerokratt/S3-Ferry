@@ -1,3 +1,5 @@
+import path from 'path';
+
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
@@ -16,7 +18,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Ensure Vitest correctly resolves TypeScript path aliases
-      src: resolve(__dirname, './src'),
+      src: path.resolve(__dirname, './src'),
     },
   },
 });
