@@ -67,11 +67,15 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Create LocalStack bucket
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
-          sleep 5
-          aws --endpoint-url=http://localstack:4566 s3 mb s3://buerokratt || true
+        uses: docker://docker
+        with:
+          args: docker exec localstack /bin/sh -c "awslocal s3 mb s3://buerokratt"
+      # - name: Create LocalStack bucket
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y awscli
+      #     sleep 5
+      #     aws --endpoint-url=http://localstack:4566 s3 mb s3://buerokratt || true
       - name: Update test.env for services
         run: |
           sed -i 's|http://localhost:4566|http://localstack:4566|g' config/test.env

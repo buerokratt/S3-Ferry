@@ -1,0 +1,92 @@
+name: s3-ferry
+on:
+  push:
+    branches: [main]
+    paths:
+    - '**/*'
+  pull_request:
+    paths:
+      - '**/*'
+defaults:
+  run:
+    working-directory: .
+jobs:
+  api-validate-package-lock-json:
+    runs-on: ubuntu-latest
+    container: node:20.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add build dependencies
+        run: apk add --update --no-progress tar
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-
+      - run: cp package-lock.json package-lock.json.orig
+      - run: npm install
+      - run: cmp -s package-lock.json package-lock.json.orig
+  api-format-check:
+    runs-on: ubuntu-latest
+    container: node:20.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add build dependencies
+        run: apk add --update --no-progress tar
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-
+      - run: npm install
+      - run: npm run format:check
+  api-lint-check:
+    runs-on: ubuntu-latest
+    container: node:20.12-alpine
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add build dependencies
+        run: apk add --update --no-progress tar
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-
+      - run: npm install
+      - run: npm run lint:check
+  api-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build .
+  api-test-e2e:
+    runs-on: ubuntu-latest
+    container: node:20.12-alpine
+    services:
+      localstack:
+        image: localstack/localstack:3.3.0
+        options: --name localstack
+        env:
+          SERVICES: "s3:4566"
+        ports:
+          - 4566:4566
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add build dependencies
+        run: apk add --update --no-progress tar
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-
+      - name: Create LocalStack bucket
+        uses: docker://docker
+        with:
+          args: docker exec localstack /bin/sh -c "awslocal s3 mb s3://buerokratt"
+      - run: sed -i '/^S3_ENDPOINT_URL/s/localhost/localstack/' config/test.env
+      - run: npm install
+      - run: npm run test:e2e
