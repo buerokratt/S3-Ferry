@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { AzureAccountService } from '../azure/services';
 import {
   CopyFileBodyDto,
   DataWithMetaResponseDto,
   FileDto,
   LocalFilesListMetaDto,
+  StorageAccountDto,
 } from '../common/dtos';
 import { StorageType } from '../common/enums';
 import {
@@ -21,6 +23,7 @@ export class AppService {
   constructor(
     private readonly fsService: FsService,
     private readonly s3Service: S3Service,
+    private readonly azureAccountService: AzureAccountService,
   ) {}
 
   async listFiles(
@@ -68,6 +71,19 @@ export class AppService {
       throw error instanceof FileNotFoundException
         ? new FileNotFoundException(error.message)
         : new InternalServerException();
+    }
+  }
+
+  listAccounts(): StorageAccountDto[] {
+    try {
+      // For now, only return Azure accounts
+      // In the future, this will aggregate accounts from all storage types
+      return this.azureAccountService.listAccounts();
+    } catch (error) {
+      this.logger.error(
+        `Listing storage accounts failed: ${error instanceof Error ? error.stack : String(error)}`,
+      );
+      throw error;
     }
   }
 }

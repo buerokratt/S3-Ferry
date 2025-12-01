@@ -7,7 +7,7 @@ import {
   UseInterceptors,
   Version,
 } from '@nestjs/common';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 
 import { ApiOkDataWithMetaResponse } from './common/decorators';
 import {
@@ -16,6 +16,7 @@ import {
   FileDto,
   ListFilesQueryDto,
   LocalFilesListMetaDto,
+  StorageAccountDto,
 } from './common/dtos';
 import { RequestLogger } from './common/interceptors';
 import { AppService } from './services';
@@ -29,6 +30,17 @@ export class AppController {
   @ApiOperation({ summary: 'Root' })
   get(): { data: string } {
     return { data: 'Storage Ferry' };
+  }
+
+  @Version('1')
+  @Get('/storage-accounts')
+  @ApiOkResponse({
+    type: [StorageAccountDto],
+    description: 'List all available storage accounts',
+  })
+  @ApiOperation({ summary: 'List all available storage accounts' })
+  listStorageAccounts(): StorageAccountDto[] {
+    return this.appService.listAccounts();
   }
 
   @Version('1')

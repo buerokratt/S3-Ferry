@@ -12,7 +12,11 @@ import { plainToInstance } from 'class-transformer';
 import request from 'supertest';
 
 import { AppModule } from '../src/app.module';
-import { CopyFileBodyDto, FileDto } from '../src/common/dtos';
+import {
+  CopyFileBodyDto,
+  FileDto,
+  StorageAccountDto,
+} from '../src/common/dtos';
 import { StorageType } from '../src/common/enums';
 import { fsConfigFactory } from '../src/fs/config';
 
@@ -119,6 +123,33 @@ describe('AppController (e2e)', () => {
         .send(data);
 
       expect(status).toBe(HttpStatus.CREATED);
+    });
+  });
+
+  describe('GET /v1/storage-accounts', () => {
+    it('should return accounts with IDs based on AccountName', async () => {
+      const { body, status } = await request(app.getHttpServer()).get(
+        '/v1/storage-accounts',
+      );
+
+      expect(status).toBe(HttpStatus.OK);
+
+      // Based on test.env, we should have accounts with IDs like:
+      // azure-testaccount1, azure-testaccount2, azure-testaccount3
+      const accountIds = body.map((account: StorageAccountDto) => account.id);
+
+      // Verify IDs follow the pattern azure-{accountname}
+      accountIds.forEach((id: string) => {
+        expect(id).toMatch(/^azure-[a-z0-9-]+$/);
+      });
+
+      // Verify we have the expected number of accounts (3 from test.env)
+      expect(accountIds.length).toBe(3);
+
+      // Verify specific account IDs exist
+      expect(accountIds).toContain('azure-testaccount1');
+      expect(accountIds).toContain('azure-testaccount2');
+      expect(accountIds).toContain('azure-testaccount3');
     });
   });
 });

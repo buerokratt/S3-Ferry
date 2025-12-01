@@ -1,0 +1,6 @@
+{
+  "destinationStorageType": "S3",
+  "destinationStorageAccount": "account-2", // Identifier, not credentials
+  "destinationFilePath": "path/intent.json",
+  "destinationBucketName": "bucket-2",
+}
