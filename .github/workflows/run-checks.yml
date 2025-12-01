@@ -68,7 +68,8 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Create LocalStack bucket
         run: |
-          apk add --update --no-progress aws-cli
+          sudo apt-get update
+          sudo apt-get install -y awscli
           sleep 5
           aws --endpoint-url=http://localstack:4566 s3 mb s3://buerokratt || true
       - name: Update test.env for services
