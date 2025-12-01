@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { BlobServiceClient } from '@azure/storage-blob';
 import {
   HttpStatus,
   INestApplication,
@@ -201,6 +202,56 @@ describe('AppController (e2e)', () => {
         .send(data);
 
       expect(status).toBe(HttpStatus.CREATED);
+
+      // Verify files were created in the correct accounts
+      const account1ConnectionString =
+        'DefaultEndpointsProtocol=http;AccountName=testaccount1;AccountKey=dGVzdGtleTE9PQ==;BlobEndpoint=http://127.0.0.1:10000/testaccount1;QueueEndpoint=http://127.0.0.1:10001/testaccount1;TableEndpoint=http://127.0.0.1:10002/testaccount1;';
+      const account2ConnectionString =
+        'DefaultEndpointsProtocol=http;AccountName=testaccount2;AccountKey=dGVzdGtleTI9PQ==;BlobEndpoint=http://127.0.0.1:10000/testaccount2;QueueEndpoint=http://127.0.0.1:10001/testaccount2;TableEndpoint=http://127.0.0.1:10002/testaccount2;';
+      const account3ConnectionString =
+        'DefaultEndpointsProtocol=http;AccountName=testaccount3;AccountKey=dGVzdGtleTM9PQ==;BlobEndpoint=http://127.0.0.1:10000/testaccount3;QueueEndpoint=http://127.0.0.1:10001/testaccount3;TableEndpoint=http://127.0.0.1:10002/testaccount3;';
+
+      // Check account 1
+      const blobServiceClient1 = BlobServiceClient.fromConnectionString(
+        account1ConnectionString,
+      );
+      const containerClient1 =
+        blobServiceClient1.getContainerClient('test-container');
+      const blobs1: string[] = [];
+      for await (const blob of containerClient1.listBlobsFlat()) {
+        blobs1.push(blob.name);
+      }
+      expect(blobs1).toContain('file1.txt');
+      expect(blobs1).not.toContain('file2.txt');
+      expect(blobs1).not.toContain('file3.txt');
+
+      // Check account 2
+      const blobServiceClient2 = BlobServiceClient.fromConnectionString(
+        account2ConnectionString,
+      );
+      const containerClient2 =
+        blobServiceClient2.getContainerClient('test-container');
+      const blobs2: string[] = [];
+      for await (const blob of containerClient2.listBlobsFlat()) {
+        blobs2.push(blob.name);
+      }
+      expect(blobs2).toContain('file2.txt');
+      expect(blobs2).not.toContain('file1.txt');
+      expect(blobs2).not.toContain('file3.txt');
+
+      // Check account 3
+      const blobServiceClient3 = BlobServiceClient.fromConnectionString(
+        account3ConnectionString,
+      );
+      const containerClient3 =
+        blobServiceClient3.getContainerClient('test-container');
+      const blobs3: string[] = [];
+      for await (const blob of containerClient3.listBlobsFlat()) {
+        blobs3.push(blob.name);
+      }
+      expect(blobs3).toContain('file3.txt');
+      expect(blobs3).not.toContain('file1.txt');
+      expect(blobs3).not.toContain('file2.txt');
     });
 
     it('should fail with invalid storage account ID', async () => {

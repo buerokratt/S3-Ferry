@@ -10,6 +10,10 @@ export class AzureBlobService {
     @Inject(azureConfigFactory.KEY) private readonly config: AzureConfig,
   ) {}
 
+  /**
+   * Creates a new blob or replaces an existing one if it already exists.
+   * The upload operation will overwrite any existing blob with the same name.
+   */
   async createBlob(
     storageAccountId: string,
     containerName: string,
