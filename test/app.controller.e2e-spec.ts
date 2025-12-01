@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
-import * as request from 'supertest';
+import request from 'supertest';
 
 import { AppModule } from '../src/app.module';
 import { appConfigFactory } from '../src/config';
