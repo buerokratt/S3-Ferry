@@ -4,8 +4,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigModule as NestConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller';
-import { appConfigFactory } from './common/config';
 import { AzureModule } from './azure';
+import { appConfigFactory } from './common/config';
 import { FsModule } from './fs';
 import { S3Module } from './s3';
 import { AppService } from './services';

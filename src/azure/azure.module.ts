@@ -10,4 +10,3 @@ import { AzureAccountService, AzureBlobService } from './services';
   exports: [AzureAccountService, AzureBlobService],
 })
 export class AzureModule {}
-

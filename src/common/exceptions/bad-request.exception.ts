@@ -5,5 +5,3 @@ export class BadRequestException extends HttpException {
     super(message, HttpStatus.BAD_REQUEST);
   }
 }
-
-
