@@ -1,7 +1,7 @@
 import { IsEnum, IsString, Validate } from 'class-validator';
 
-import { PathConstraint, UniqueValuesConstraint } from '../common/validators';
 import { StorageType } from '../enums';
+import { PathConstraint, UniqueValuesConstraint } from '../validators';
 
 export class CopyFileBodyDto {
   @IsString()

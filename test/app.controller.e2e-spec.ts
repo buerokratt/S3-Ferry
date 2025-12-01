@@ -12,9 +12,9 @@ import { plainToInstance } from 'class-transformer';
 import request from 'supertest';
 
 import { AppModule } from '../src/app.module';
-import { appConfigFactory } from '../src/config';
-import { CopyFileBodyDto, FileDto } from '../src/dtos';
-import { StorageType } from '../src/enums';
+import { CopyFileBodyDto, FileDto } from '../src/common/dtos';
+import { StorageType } from '../src/common/enums';
+import { fsConfigFactory } from '../src/fs/config';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -31,16 +31,18 @@ describe('AppController (e2e)', () => {
       new ValidationPipe({ transform: true, whitelist: true }),
     );
 
-    fsDataDirectoryPath = app.get(appConfigFactory.KEY).fsDataDirectoryPath;
-
-    fs.mkdirSync(fsDataDirectoryPath);
-    fs.writeFileSync(path.join(fsDataDirectoryPath, 'file.txt'), '');
-
     await app.init();
+
+    fsDataDirectoryPath = app.get(fsConfigFactory.KEY).dataDirectoryPath;
+
+    fs.mkdirSync(fsDataDirectoryPath, { recursive: true });
+    fs.writeFileSync(path.join(fsDataDirectoryPath, 'file.txt'), '');
   });
 
   afterAll(async () => {
-    fs.rmSync(fsDataDirectoryPath, { recursive: true });
+    if (fsDataDirectoryPath) {
+      fs.rmSync(fsDataDirectoryPath, { recursive: true });
+    }
 
     await app.close();
   });

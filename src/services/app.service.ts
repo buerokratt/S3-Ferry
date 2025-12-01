@@ -1,14 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { FsService } from './fs.service';
-import { S3Service } from './s3.service';
-import { DataWithMetaResponseDto } from '../common/dtos';
+import {
+  CopyFileBodyDto,
+  DataWithMetaResponseDto,
+  FileDto,
+  LocalFilesListMetaDto,
+} from '../common/dtos';
+import { StorageType } from '../common/enums';
 import {
   FileNotFoundException,
   InternalServerException,
 } from '../common/exceptions';
-import { CopyFileBodyDto, FileDto, LocalFilesListMetaDto } from '../dtos';
-import { StorageType } from '../enums';
+import { FsService } from '../fs';
+import { S3Service } from '../s3';
 
 @Injectable()
 export class AppService {
@@ -45,6 +49,7 @@ export class AppService {
           await this.s3Service.copyFileFromRemoteToLocal(
             data.destinationFilePath,
             data.sourceFilePath,
+            this.fsService.getDataDirectoryPath(),
           );
           break;
 
@@ -52,6 +57,7 @@ export class AppService {
           await this.s3Service.copyFileFromLocalToRemote(
             data.sourceFilePath,
             data.destinationFilePath,
+            this.fsService.getDataDirectoryPath(),
           );
           break;
       }

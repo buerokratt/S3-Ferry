@@ -10,14 +10,14 @@ import {
 import { ApiOperation } from '@nestjs/swagger';
 
 import { ApiOkDataWithMetaResponse } from './common/decorators';
-import { DataWithMetaResponseDto } from './common/dtos';
 import {
   CopyFileBodyDto,
+  DataWithMetaResponseDto,
   FileDto,
   ListFilesQueryDto,
   LocalFilesListMetaDto,
-} from './dtos';
-import { RequestLogger } from './interceptor';
+} from './common/dtos';
+import { RequestLogger } from './common/interceptors';
 import { AppService } from './services';
 
 @Controller('')
