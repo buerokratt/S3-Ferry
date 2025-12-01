@@ -12,6 +12,7 @@ import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { ApiOkDataWithMetaResponse } from './common/decorators';
 import {
   CopyFileBodyDto,
+  CreateFileBodyDto,
   DataWithMetaResponseDto,
   FileDto,
   ListFilesQueryDto,
@@ -61,5 +62,12 @@ export class AppController {
   @ApiOperation({ summary: 'Copy file from source to destination' })
   async copyFile(@Body() data: CopyFileBodyDto): Promise<void> {
     return this.appService.copyFile(data);
+  }
+
+  @Version('1')
+  @Post('/files/create')
+  @ApiOperation({ summary: 'Create a file in storage' })
+  async createFile(@Body() data: CreateFileBodyDto): Promise<void> {
+    return this.appService.createFile(data);
   }
 }

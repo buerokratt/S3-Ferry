@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { AzureAccountService } from '../azure/services';
+import { AzureAccountService, AzureBlobService } from '../azure/services';
 import {
   CopyFileBodyDto,
+  CreateFileBodyDto,
   DataWithMetaResponseDto,
   FileDto,
   LocalFilesListMetaDto,
@@ -24,6 +25,7 @@ export class AppService {
     private readonly fsService: FsService,
     private readonly s3Service: S3Service,
     private readonly azureAccountService: AzureAccountService,
+    private readonly azureBlobService: AzureBlobService,
   ) {}
 
   async listFiles(
@@ -36,6 +38,9 @@ export class AppService {
 
         case StorageType.S3:
           return await this.s3Service.listFiles();
+
+        default:
+          throw new Error(`Storage type not supported: ${storageType}`);
       }
     } catch (error) {
       this.logger.error(
@@ -82,6 +87,29 @@ export class AppService {
     } catch (error) {
       this.logger.error(
         `Listing storage accounts failed: ${error instanceof Error ? error.stack : String(error)}`,
+      );
+      throw error;
+    }
+  }
+
+  async createFile(data: CreateFileBodyDto): Promise<void> {
+    try {
+      // Infer storage type from account ID (e.g., "azure-account1" -> Azure, "s3-key" -> S3)
+      if (data.storageAccountId.startsWith('azure-')) {
+        await this.azureBlobService.createBlob(
+          data.storageAccountId,
+          data.container,
+          data.fileName,
+          data.content,
+        );
+      } else {
+        throw new Error(
+          `Storage type not supported for account: ${data.storageAccountId}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Creating file failed: ${error instanceof Error ? error.stack : String(error)}`,
       );
       throw error;
     }
