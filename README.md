@@ -1,15 +1,15 @@
-# S3-Ferry
+# Storage-Ferry
 
-A generic service to trasnfer files to and from any S3 platform
+A generic service to transfer files between different storage backends (local filesystem, S3, Azure Blob, etc.)
 
 ---
 
 ## Local Development
 
-To develop the S3 Ferry, it's recommended to have [nvm](https://github.com/nvm-sh/nvm) installed, which will ensure you
+To develop the Storage Ferry, it's recommended to have [nvm](https://github.com/nvm-sh/nvm) installed, which will ensure you
 have the correct node and npm versions.
 
-```
+```sh
 # Install the required node version
 nvm install
 
@@ -32,7 +32,7 @@ npm run start:dev
 
 Linting and formatting is done with [ESLint](https://eslint.org/) and [Prettier](https://prettier.io/).
 
-```
+```sh
 # Run eslint
 npm run lint:check
 
@@ -45,7 +45,7 @@ npm run format:check
 ## Running Tests
 
 ```sh
-# Run localstack
+# Run localstack - IMPORTANT! S3-related tests will fail otherwise
 docker compose up localstack
 # Run e2e tests locally
 npm run test:e2e
@@ -55,9 +55,9 @@ npm run test:e2e
 
 ## Docker
 
-You can run the S3 Ferry inside docker. The API will be exposed at `http://localhost:3000`.
+You can run the Storage Ferry inside docker. The API will be exposed at `http://localhost:3000`.
 
-```
+```sh
 # Build the docker image
 docker compose build
 

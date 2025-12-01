@@ -28,7 +28,7 @@ export class AppController {
   @Get('/')
   @ApiOperation({ summary: 'Root' })
   get(): { data: string } {
-    return { data: 'S3 Ferry' };
+    return { data: 'Storage Ferry' };
   }
 
   @Version('1')
