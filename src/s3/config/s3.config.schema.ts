@@ -10,4 +10,3 @@ const schema = {
 };
 
 export const s3ConfigSchema = joi.object<typeof schema>(schema);
-

@@ -5,4 +5,3 @@ const schema = {
 };
 
 export const fsConfigSchema = joi.object<typeof schema>(schema);
-

@@ -23,9 +23,7 @@ import { S3Config } from '../config/s3.config.interface';
 export class S3Service {
   private readonly s3: S3;
 
-  constructor(
-    @Inject(s3ConfigFactory.KEY) private readonly config: S3Config,
-  ) {
+  constructor(@Inject(s3ConfigFactory.KEY) private readonly config: S3Config) {
     this.s3 = new S3({
       credentials: {
         accessKeyId: config.accessKeyId,
@@ -120,4 +118,3 @@ export class S3Service {
     );
   }
 }
-

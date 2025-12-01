@@ -1,7 +1,7 @@
 import { registerAs } from '@nestjs/config';
 
-import { ConfigUtil } from '../utils';
 import { AppConfig } from '../interfaces';
+import { ConfigUtil } from '../utils';
 
 import { appConfigSchema } from './';
 

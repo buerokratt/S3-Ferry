@@ -6,4 +6,3 @@ export interface S3Config {
   readonly dataBucketName: string;
   readonly dataBucketPath: string;
 }
-

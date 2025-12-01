@@ -1,9 +1,8 @@
 import { registerAs } from '@nestjs/config';
 
-import { ConfigUtil } from '../../common/utils';
 import { S3Config } from './s3.config.interface';
-
 import { s3ConfigSchema } from './s3.config.schema';
+import { ConfigUtil } from '../../common/utils';
 
 export const s3ConfigFactory = registerAs('s3', (): S3Config => {
   const env = ConfigUtil.validate(s3ConfigSchema);
@@ -17,4 +16,3 @@ export const s3ConfigFactory = registerAs('s3', (): S3Config => {
     dataBucketPath: <string>env['S3_DATA_BUCKET_PATH'],
   };
 });
-
