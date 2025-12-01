@@ -11,7 +11,7 @@ export class CreateFileBodyDto {
   readonly content!: string;
 }
 
-class FileLocationDto {
+export class FileLocationDto {
   @IsString()
   readonly storageAccountId!: string;
 
