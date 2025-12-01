@@ -41,7 +41,6 @@ jobs:
   test-e2e:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    container: node:24.11.0-alpine
     timeout-minutes: 15
     services:
       localstack:
@@ -62,14 +61,11 @@ jobs:
           - 10002:10002
     steps:
       - uses: actions/checkout@v4
-      - name: Add build dependencies
-        run: apk add --update --no-progress tar docker
-      - uses: actions/cache@v4
+      - uses: actions/setup-node@v4
         with:
-          path: ~/.npm
-          key: npm-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            npm-
+          node-version-file: package.json
+          cache: npm
+          cache-dependency-path: package-lock.json
       - name: Create LocalStack bucket
         run: |
           apk add --update --no-progress aws-cli
