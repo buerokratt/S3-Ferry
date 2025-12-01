@@ -31,7 +31,9 @@ export class AppService {
           return await this.s3Service.listFiles();
       }
     } catch (error) {
-      this.logger.error(`Listing files failed: ${error.stack}`);
+      this.logger.error(
+        `Listing files failed: ${error instanceof Error ? error.stack : String(error)}`,
+      );
       throw error;
     }
   }
@@ -54,7 +56,9 @@ export class AppService {
           break;
       }
     } catch (error) {
-      this.logger.error(`Copying files failed: ${error.stack}`);
+      this.logger.error(
+        `Copying files failed: ${error instanceof Error ? error.stack : String(error)}`,
+      );
       throw error instanceof FileNotFoundException
         ? new FileNotFoundException(error.message)
         : new InternalServerException();
