@@ -3,17 +3,17 @@ on:
   push:
     branches: [main]
     paths:
-    - '**/*'
+      - "**/*"
   pull_request:
     paths:
-      - '**/*'
+      - "**/*"
 defaults:
   run:
     working-directory: .
 jobs:
   api-validate-package-lock-json:
     runs-on: ubuntu-latest
-    container: node:20.12-alpine
+    container: node:24.11.0-alpine
     steps:
       - uses: actions/checkout@v4
       - name: Add build dependencies
@@ -29,7 +29,7 @@ jobs:
       - run: cmp -s package-lock.json package-lock.json.orig
   api-format-check:
     runs-on: ubuntu-latest
-    container: node:20.12-alpine
+    container: node:24.11.0-alpine
     steps:
       - uses: actions/checkout@v4
       - name: Add build dependencies
@@ -44,7 +44,7 @@ jobs:
       - run: npm run format:check
   api-lint-check:
     runs-on: ubuntu-latest
-    container: node:20.12-alpine
+    container: node:24.11.0-alpine
     steps:
       - uses: actions/checkout@v4
       - name: Add build dependencies
@@ -64,7 +64,7 @@ jobs:
       - run: docker build .
   api-test-e2e:
     runs-on: ubuntu-latest
-    container: node:20.12-alpine
+    container: node:24.11.0-alpine
     services:
       localstack:
         image: localstack/localstack:3.3.0
