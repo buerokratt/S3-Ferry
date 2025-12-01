@@ -1,3 +1,5 @@
+import { join } from 'path';
+
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigModule as NestConfigModule } from '@nestjs/config';
 
@@ -8,7 +10,11 @@ import { AppService, FsService, S3Service } from './services';
 @Module({
   imports: [
     NestConfigModule.forRoot({
-      envFilePath: `${__dirname}/../config/${process.env.NODE_ENV}.env`,
+      envFilePath: join(
+        process.cwd(),
+        'config',
+        `${process.env.NODE_ENV || 'development'}.env`,
+      ),
       expandVariables: true,
     }),
     ConfigModule.forFeature(appConfigFactory),
