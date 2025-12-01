@@ -44,9 +44,9 @@ npm run format:check
 
 ## Running Tests
 
-API endpoints are covered with basic e2e tests written with [Jest](https://jestjs.io/).
-
-```
+```sh
+# Run localstack
+docker compose up localstack
 # Run e2e tests locally
 npm run test:e2e
 ```
@@ -79,7 +79,7 @@ at [http://localhost:3000/documentation](http://localhost:3000/documentation)
 Environment variables and their meaning is defined below.
 
 | Variable                    | Description                                                                                                                                                           |
-|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `API_CORS_ORIGIN`           | Specify CORS allowed domains. <br/>- Asterisk (`*`) to allow all<br/>- Empty value to allow nothing<br/>- Otherwise provide a comma separated list of allowed domains |
 | `API_DOCUMENTATION_ENABLED` | Enable API documentation, value can be either `true` or `false`                                                                                                       |
 | `S3_REGION`                 | Endpoint region for the S3 storage                                                                                                                                    |
@@ -89,4 +89,3 @@ Environment variables and their meaning is defined below.
 | `S3_DATA_BUCKET_NAME`       | Data bucket name for the S3 storage                                                                                                                                   |
 | `S3_DATA_BUCKET_PATH`       | Data bucket path for the S3 storage                                                                                                                                   |
 | `FS_DATA_DIRECTORY_PATH`    | Local filesystem data directory path                                                                                                                                  |
-
