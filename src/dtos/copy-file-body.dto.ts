@@ -6,19 +6,19 @@ import { StorageType } from '../enums';
 export class CopyFileBodyDto {
   @IsString()
   @Validate(PathConstraint)
-  readonly destinationFilePath: string;
+  readonly destinationFilePath!: string;
 
   @IsEnum(StorageType)
-  readonly destinationStorageType: StorageType;
+  readonly destinationStorageType!: StorageType;
 
   @IsString()
   @Validate(PathConstraint)
-  readonly sourceFilePath: string;
+  readonly sourceFilePath!: string;
 
   @IsEnum(StorageType)
   @Validate(UniqueValuesConstraint, [
     'destinationStorageType',
     'sourceStorageType',
   ])
-  readonly sourceStorageType: StorageType;
+  readonly sourceStorageType!: StorageType;
 }

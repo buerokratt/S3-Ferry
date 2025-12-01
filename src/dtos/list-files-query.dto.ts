@@ -4,5 +4,5 @@ import { StorageType } from '../enums';
 
 export class ListFilesQueryDto {
   @IsEnum(StorageType)
-  readonly type: StorageType;
+  readonly type!: StorageType;
 }
