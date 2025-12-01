@@ -31,6 +31,10 @@ export class S3Service {
       ...(config.s3EndpointUrl && { endpoint: config.s3EndpointUrl }),
       forcePathStyle: true,
       region: config.s3Region,
+      // Disable automatic checksum calculation to avoid compatibility issues with LocalStack
+      // LocalStack doesn't fully support AWS SDK v3's flexible checksums middleware,
+      // which can cause errors like "'NoneType' object has no attribute 'to_bytes'"
+      requestChecksumCalculation: 'WHEN_REQUIRED',
     });
   }
 
