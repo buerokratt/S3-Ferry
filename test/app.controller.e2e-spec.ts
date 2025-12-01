@@ -14,6 +14,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import {
   CopyFileBodyDto,
+  CreateFileBodyDto,
   FileDto,
   StorageAccountDto,
 } from '../src/common/dtos';
@@ -150,6 +151,75 @@ describe('AppController (e2e)', () => {
       expect(accountIds).toContain('azure-testaccount1');
       expect(accountIds).toContain('azure-testaccount2');
       expect(accountIds).toContain('azure-testaccount3');
+    });
+  });
+
+  describe('POST /v1/files/create', () => {
+    it('should create a file in Azure storage', async () => {
+      const data: CreateFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'test-container',
+            fileName: 'test-file.txt',
+          },
+        ],
+        content: 'Hello, World!',
+      };
+
+      const { status } = await request(app.getHttpServer())
+        .post('/v1/files/create')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.CREATED);
+    });
+
+    it('should create multiple files in parallel', async () => {
+      const data: CreateFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'test-container',
+            fileName: 'file1.txt',
+          },
+          {
+            storageAccountId: 'azure-testaccount2',
+            container: 'test-container',
+            fileName: 'file2.txt',
+          },
+          {
+            storageAccountId: 'azure-testaccount3',
+            container: 'test-container',
+            fileName: 'file3.txt',
+          },
+        ],
+        content: 'Shared content for all files',
+      };
+
+      const { status } = await request(app.getHttpServer())
+        .post('/v1/files/create')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.CREATED);
+    });
+
+    it('should fail with invalid storage account ID', async () => {
+      const data: CreateFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'invalid-account',
+            container: 'test-container',
+            fileName: 'test-file.txt',
+          },
+        ],
+        content: 'Hello, World!',
+      };
+
+      const { status } = await request(app.getHttpServer())
+        .post('/v1/files/create')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
     });
   });
 });

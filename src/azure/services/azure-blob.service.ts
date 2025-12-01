@@ -25,6 +25,26 @@ export class AzureBlobService {
       account.connectionString,
     );
     const containerClient = blobServiceClient.getContainerClient(containerName);
+
+    // // Ensure the container exists
+    // // Ignore 409 (Conflict) errors as they mean the container already exists
+    // try {
+    //   await containerClient.createIfNotExists();
+    // } catch (error: unknown) {
+    //   // If it's a RestError with statusCode 409, the container already exists - that's fine
+    //   if (
+    //     error &&
+    //     typeof error === 'object' &&
+    //     'statusCode' in error &&
+    //     error.statusCode === 409
+    //   ) {
+    //     // Container already exists, continue
+    //   } else {
+    //     // Re-throw other errors (including 404 which might indicate account doesn't exist)
+    //     throw error;
+    //   }
+    // }
+
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
     const contentBuffer = Buffer.from(content, 'utf-8');

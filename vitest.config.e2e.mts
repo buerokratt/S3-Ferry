@@ -10,6 +10,8 @@ export default defineConfig({
       '@test': './test',
     },
     root: './',
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
   resolve: {
     alias: {

@@ -19,8 +19,8 @@ nvm use
 # Install node dependencies
 npm install
 
-# Run the locakstack container
-docker compose up localstack
+# Run the localstack and azurite containers
+docker compose up localstack azurite
 
 # Run the API in development mode
 npm run start:dev
@@ -45,8 +45,8 @@ npm run format:check
 ## Running Tests
 
 ```sh
-# Run localstack - IMPORTANT! S3-related tests will fail otherwise
-docker compose up localstack
+# Run localstack and azurite - tests will fail otherwise
+docker compose up localstack azurite
 # Run e2e tests locally
 npm run test:e2e
 ```
