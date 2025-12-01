@@ -97,7 +97,6 @@ export class AppService {
     }
   }
 
-  // todo custom url? investigate how used with s3
   async createFile(data: CreateFileBodyDto): Promise<void> {
     try {
       // Create files at all specified locations with the same content in parallel
