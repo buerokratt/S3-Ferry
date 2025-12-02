@@ -90,7 +90,7 @@ Lists all available storage accounts configured in the system. You can use these
 ]
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported. Account IDs follow the format `azure-{account-name}` (e.g., `azure-buerokratt8481675820`). See [Environment Variables](#environment-variables) for more information.
+**Note:** Currently, only Azure Blob Storage is supported. Account IDs follow the format `azure-{account-name}` (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
 
 ---
 
@@ -133,7 +133,7 @@ Creates a file in storage at one or more specified locations. The same content i
 }
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Environment Variables](#environment-variables) for more information.
+**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
 
 ---
 
@@ -141,15 +141,27 @@ Creates a file in storage at one or more specified locations. The same content i
 
 Environment variables and their meaning is defined below.
 
-| Variable                            | Description                                                                                                                                                                                                                                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `API_CORS_ORIGIN`                   | Specify CORS allowed domains. <br/>- Asterisk (`*`) to allow all<br/>- Empty value to allow nothing<br/>- Otherwise provide a comma separated list of allowed domains                                                                                                                 |
-| `API_DOCUMENTATION_ENABLED`         | Enable API documentation, value can be either `true` or `false`                                                                                                                                                                                                                       |
-| `S3_REGION`                         | Endpoint region for the S3 storage                                                                                                                                                                                                                                                    |
-| `S3_ENDPOINT_URL`                   | Endpoint URL for the S3 storage. Can be used with S3-compatible services (e.g., MinIO, DigitalOcean Spaces) by providing a custom endpoint URL. Leave empty to use default AWS S3 endpoints.                                                                                          |
-| `S3_ACCESS_KEY_ID`                  | Access key for the S3 storage                                                                                                                                                                                                                                                         |
-| `S3_SECRET_ACCESS_KEY`              | Secret access key for the S3 storage                                                                                                                                                                                                                                                  |
-| `S3_DATA_BUCKET_NAME`               | Data bucket name for the S3 storage                                                                                                                                                                                                                                                   |
-| `S3_DATA_BUCKET_PATH`               | Data bucket path for the S3 storage                                                                                                                                                                                                                                                   |
-| `FS_DATA_DIRECTORY_PATH`            | Local filesystem data directory path                                                                                                                                                                                                                                                  |
-| `AZURE_ACCOUNT_*_CONNECTION_STRING` | Azure Storage account connection string. Can include `BlobEndpoint` parameter to use custom endpoints (e.g., Azurite for local development). Note: While technically supported, there are very few production-ready Azure-compatible services compared to S3-compatible alternatives. |
+### General
+
+| Variable                    | Description                                                                                                                                                           |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_CORS_ORIGIN`           | Specify CORS allowed domains. <br/>- Asterisk (`*`) to allow all<br/>- Empty value to allow nothing<br/>- Otherwise provide a comma separated list of allowed domains |
+| `API_DOCUMENTATION_ENABLED` | Enable API documentation, value can be either `true` or `false`                                                                                                       |
+| `FS_DATA_DIRECTORY_PATH`    | Local filesystem data directory path                                                                                                                                  |
+
+### Azure
+
+| Variable                            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AZURE_ACCOUNT_*_CONNECTION_STRING` | Azure Storage account connection string. The asterisk (`*`) represents a number (e.g., `AZURE_ACCOUNT_1_CONNECTION_STRING`, `AZURE_ACCOUNT_2_CONNECTION_STRING`). You can define multiple accounts by using different numbers. The connection string can include `BlobEndpoint` parameter to use custom endpoints (e.g., Azurite for local development). Note: While technically supported, there are very few production-ready Azure-compatible services compared to S3-compatible alternatives. See `config/test.env` for examples. |
+
+### S3
+
+| Variable               | Description                                                                                                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `S3_REGION`            | Endpoint region for the S3 storage                                                                                                                                                           |
+| `S3_ENDPOINT_URL`      | Endpoint URL for the S3 storage. Can be used with S3-compatible services (e.g., MinIO, DigitalOcean Spaces) by providing a custom endpoint URL. Leave empty to use default AWS S3 endpoints. |
+| `S3_ACCESS_KEY_ID`     | Access key for the S3 storage                                                                                                                                                                |
+| `S3_SECRET_ACCESS_KEY` | Secret access key for the S3 storage                                                                                                                                                         |
+| `S3_DATA_BUCKET_NAME`  | Data bucket name for the S3 storage                                                                                                                                                          |
+| `S3_DATA_BUCKET_PATH`  | Data bucket path for the S3 storage                                                                                                                                                          |
