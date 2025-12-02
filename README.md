@@ -84,11 +84,13 @@ Lists all available storage accounts configured in the system. You can use these
 
 ```json
 [
-  { "id": "azure-account1" },
-  { "id": "azure-account2" },
-  { "id": "azure-account3" }
+  { "id": "azure-buerokratt8481675820" },
+  { "id": "azure-buerokratt1234567890" },
+  { "id": "azure-buerokratt9876543210" }
 ]
 ```
+
+**Note:** Currently, only Azure Blob Storage is supported. Account IDs follow the format `azure-{account-name}` (e.g., `azure-buerokratt8481675820`). See [Environment Variables](#environment-variables) for more information.
 
 ---
 
@@ -102,7 +104,7 @@ Creates a file in storage at one or more specified locations. The same content i
 {
   "files": [
     {
-      "storageAccountId": "azure-account1",
+      "storageAccountId": "azure-buerokratt8481675820",
       "container": "my-container",
       "fileName": "path/to/file.json"
     }
@@ -117,12 +119,12 @@ Creates a file in storage at one or more specified locations. The same content i
 {
   "files": [
     {
-      "storageAccountId": "azure-account1",
+      "storageAccountId": "azure-buerokratt8481675820",
       "container": "container1",
       "fileName": "file1.json"
     },
     {
-      "storageAccountId": "azure-account2",
+      "storageAccountId": "azure-buerokratt1234567890",
       "container": "container2",
       "fileName": "file2.json"
     }
@@ -131,7 +133,7 @@ Creates a file in storage at one or more specified locations. The same content i
 }
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-account1`). See [Environment Variables](#environment-variables) for more information.
+**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Environment Variables](#environment-variables) for more information.
 
 ---
 
