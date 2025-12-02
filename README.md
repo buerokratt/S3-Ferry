@@ -88,10 +88,10 @@ Creates a file in storage at one or more specified locations. The same content i
     {
       "storageAccountId": "azure-account1",
       "container": "my-container",
-      "fileName": "path/to/file.txt"
+      "fileName": "path/to/file.json"
     }
   ],
-  "content": "File content here"
+  "content": "{\"key\":\"value\"}"
 }
 ```
 
@@ -103,15 +103,15 @@ Creates a file in storage at one or more specified locations. The same content i
     {
       "storageAccountId": "azure-account1",
       "container": "container1",
-      "fileName": "file1.txt"
+      "fileName": "file1.json"
     },
     {
       "storageAccountId": "azure-account2",
       "container": "container2",
-      "fileName": "file2.txt"
+      "fileName": "file2.json"
     }
   ],
-  "content": "Same content for all files"
+  "content": "{\"key\":\"value\"}"
 }
 ```
 
