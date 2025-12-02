@@ -67,10 +67,55 @@ docker compose up
 
 ---
 
-## Documentation
+## Swagger Documentation
 
 Automatically generated API documentation can be found
 at [http://localhost:3000/documentation](http://localhost:3000/documentation)
+
+---
+
+## Endpoints
+
+### POST `/v1/files/create`
+
+Creates a file in storage at one or more specified locations. The same content is used for all file locations.
+
+**Request Body:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-account1",
+      "container": "my-container",
+      "fileName": "path/to/file.txt"
+    }
+  ],
+  "content": "File content here"
+}
+```
+
+**Example with multiple locations:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-account1",
+      "container": "container1",
+      "fileName": "file1.txt"
+    },
+    {
+      "storageAccountId": "azure-account2",
+      "container": "container2",
+      "fileName": "file2.txt"
+    }
+  ],
+  "content": "Same content for all files"
+}
+```
+
+**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-account1`). See [Environment Variables](#environment-variables) for more information.
 
 ---
 
