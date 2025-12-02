@@ -76,6 +76,22 @@ at [http://localhost:3000/documentation](http://localhost:3000/documentation)
 
 ## Endpoints
 
+### GET `/v1/storage-accounts`
+
+Lists all available storage accounts configured in the system. You can use these IDs to make requests to the other endpoints.
+
+**Response:**
+
+```json
+[
+  { "id": "azure-account1" },
+  { "id": "azure-account2" },
+  { "id": "azure-account3" }
+]
+```
+
+---
+
 ### POST `/v1/files/create`
 
 Creates a file in storage at one or more specified locations. The same content is used for all file locations.
