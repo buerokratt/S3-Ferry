@@ -109,7 +109,7 @@ Creates a file in storage at one or more specified locations. The same content i
       "fileName": "path/to/file.json"
     }
   ],
-  "content": "{\"key\":\"value\"}"
+  "content": "[{\"id\":1,\"name\":\"item1\"},{\"id\":2,\"name\":\"item2\"}]"
 }
 ```
 
@@ -129,7 +129,7 @@ Creates a file in storage at one or more specified locations. The same content i
       "fileName": "file2.json"
     }
   ],
-  "content": "{\"key\":\"value\"}"
+  "content": "[{\"id\":1,\"name\":\"item1\"},{\"id\":2,\"name\":\"item2\"}]"
 }
 ```
 
