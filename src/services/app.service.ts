@@ -10,6 +10,7 @@ import {
   CopyFileBodyDto,
   CreateFileBodyDto,
   DataWithMetaResponseDto,
+  DeleteFileBodyDto,
   FileDto,
   LocalFilesListMetaDto,
   StorageAccountDto,
@@ -134,6 +135,46 @@ export class AppService {
       );
       throw new InternalServerException(
         `Failed to create file: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async deleteFile(data: DeleteFileBodyDto): Promise<void> {
+    try {
+      // Delete files at all specified locations in parallel
+      await Promise.all(
+        data.files.map((file) => {
+          // Infer storage type from account ID (e.g., "azure-account1" -> Azure, "s3-key" -> S3)
+          if (file.storageAccountId.startsWith('azure-')) {
+            return this.azureBlobService.deleteBlob(
+              file.storageAccountId,
+              file.container,
+              file.fileName,
+            );
+          } else {
+            const errorMessage = `Storage type not supported for account: ${file.storageAccountId}`;
+            this.logger.error(
+              `${errorMessage}. Account ID format should start with 'azure-' for Azure storage.`,
+            );
+            throw new BadRequestException(errorMessage);
+          }
+        }),
+      );
+    } catch (error) {
+      // Re-throw HTTP exceptions (BadRequestException, NotFoundException, etc.)
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      // Log and wrap unexpected errors
+      this.logger.error(
+        `Deleting file failed: ${error instanceof Error ? error.stack : String(error)}`,
+      );
+      throw new InternalServerException(
+        `Failed to delete file: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

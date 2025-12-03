@@ -21,6 +21,7 @@ import { AppModule } from '../src/app.module';
 import {
   CopyFileBodyDto,
   CreateFileBodyDto,
+  DeleteFileBodyDto,
   FileDto,
   StorageAccountDto,
 } from '../src/common/dtos';
@@ -403,6 +404,265 @@ describe('AppController (e2e)', () => {
       expect(status).toBe(HttpStatus.NOT_FOUND);
       expect(body.message).toContain('Container not found');
       expect(body.message).toContain('nonexistent-container');
+      expect(body.message).toContain('azure-testaccount1');
+    });
+  });
+
+  describe('DELETE /v1/files/delete', () => {
+    /**
+     * Helper function to ensure an Azure container exists.
+     * Creates the container if it doesn't exist.
+     */
+    async function ensureAzureContainerExists(
+      connectionString: string,
+      containerName: string,
+    ): Promise<void> {
+      const blobServiceClient =
+        BlobServiceClient.fromConnectionString(connectionString);
+      const containerClient =
+        blobServiceClient.getContainerClient(containerName);
+      await containerClient.createIfNotExists();
+    }
+
+    /**
+     * Helper function to create a blob in Azure storage.
+     */
+    async function createBlob(
+      connectionString: string,
+      containerName: string,
+      blobName: string,
+      content: string,
+    ): Promise<void> {
+      const blobServiceClient =
+        BlobServiceClient.fromConnectionString(connectionString);
+      const containerClient =
+        blobServiceClient.getContainerClient(containerName);
+      await containerClient.createIfNotExists();
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+      const contentBuffer = Buffer.from(content, 'utf-8');
+      await blockBlobClient.upload(contentBuffer, contentBuffer.length);
+    }
+
+    beforeAll(async () => {
+      // Create test-container in all three test accounts before running tests
+      const azuriteHost = process.env.AZURITE_HOST || '127.0.0.1';
+      const account1ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount1;AccountKey=dGVzdGtleTE9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount1;QueueEndpoint=http://${azuriteHost}:10001/testaccount1;TableEndpoint=http://${azuriteHost}:10002/testaccount1;`;
+      const account2ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount2;AccountKey=dGVzdGtleTI9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount2;QueueEndpoint=http://${azuriteHost}:10001/testaccount2;TableEndpoint=http://${azuriteHost}:10002/testaccount2;`;
+      const account3ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount3;AccountKey=dGVzdGtleTM9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount3;QueueEndpoint=http://${azuriteHost}:10001/testaccount3;TableEndpoint=http://${azuriteHost}:10002/testaccount3;`;
+
+      await Promise.all([
+        ensureAzureContainerExists(account1ConnectionString, 'test-container'),
+        ensureAzureContainerExists(account2ConnectionString, 'test-container'),
+        ensureAzureContainerExists(account3ConnectionString, 'test-container'),
+      ]);
+    });
+
+    it('should delete a file from Azure storage', async () => {
+      // First, create a file to delete
+      const azuriteHost = process.env.AZURITE_HOST || '127.0.0.1';
+      const account1ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount1;AccountKey=dGVzdGtleTE9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount1;QueueEndpoint=http://${azuriteHost}:10001/testaccount1;TableEndpoint=http://${azuriteHost}:10002/testaccount1;`;
+      await createBlob(
+        account1ConnectionString,
+        'test-container',
+        'delete-test-file.txt',
+        'Content to be deleted',
+      );
+
+      const data: DeleteFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'test-container',
+            fileName: 'delete-test-file.txt',
+          },
+        ],
+      };
+
+      const { status } = await request(app.getHttpServer())
+        .delete('/v1/files/delete')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.OK);
+
+      // Verify the file was actually deleted
+      const blobServiceClient = BlobServiceClient.fromConnectionString(
+        account1ConnectionString,
+      );
+      const containerClient =
+        blobServiceClient.getContainerClient('test-container');
+      const blockBlobClient = containerClient.getBlockBlobClient(
+        'delete-test-file.txt',
+      );
+      const exists = await blockBlobClient.exists();
+      expect(exists).toBe(false);
+    });
+
+    it('should delete multiple files in parallel', async () => {
+      // First, create files to delete
+      const azuriteHost = process.env.AZURITE_HOST || '127.0.0.1';
+      const account1ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount1;AccountKey=dGVzdGtleTE9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount1;QueueEndpoint=http://${azuriteHost}:10001/testaccount1;TableEndpoint=http://${azuriteHost}:10002/testaccount1;`;
+      const account2ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount2;AccountKey=dGVzdGtleTI9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount2;QueueEndpoint=http://${azuriteHost}:10001/testaccount2;TableEndpoint=http://${azuriteHost}:10002/testaccount2;`;
+      const account3ConnectionString = `DefaultEndpointsProtocol=http;AccountName=testaccount3;AccountKey=dGVzdGtleTM9PQ==;BlobEndpoint=http://${azuriteHost}:10000/testaccount3;QueueEndpoint=http://${azuriteHost}:10001/testaccount3;TableEndpoint=http://${azuriteHost}:10002/testaccount3;`;
+
+      await Promise.all([
+        createBlob(
+          account1ConnectionString,
+          'test-container',
+          'parallel-delete-file1.txt',
+          'Content 1',
+        ),
+        createBlob(
+          account2ConnectionString,
+          'test-container',
+          'parallel-delete-file2.txt',
+          'Content 2',
+        ),
+        createBlob(
+          account3ConnectionString,
+          'test-container',
+          'parallel-delete-file3.txt',
+          'Content 3',
+        ),
+      ]);
+
+      const data: DeleteFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'test-container',
+            fileName: 'parallel-delete-file1.txt',
+          },
+          {
+            storageAccountId: 'azure-testaccount2',
+            container: 'test-container',
+            fileName: 'parallel-delete-file2.txt',
+          },
+          {
+            storageAccountId: 'azure-testaccount3',
+            container: 'test-container',
+            fileName: 'parallel-delete-file3.txt',
+          },
+        ],
+      };
+
+      const { status } = await request(app.getHttpServer())
+        .delete('/v1/files/delete')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.OK);
+
+      // Verify all files were deleted
+      const blobServiceClient1 = BlobServiceClient.fromConnectionString(
+        account1ConnectionString,
+      );
+      const containerClient1 =
+        blobServiceClient1.getContainerClient('test-container');
+      const blockBlobClient1 = containerClient1.getBlockBlobClient(
+        'parallel-delete-file1.txt',
+      );
+      expect(await blockBlobClient1.exists()).toBe(false);
+
+      const blobServiceClient2 = BlobServiceClient.fromConnectionString(
+        account2ConnectionString,
+      );
+      const containerClient2 =
+        blobServiceClient2.getContainerClient('test-container');
+      const blockBlobClient2 = containerClient2.getBlockBlobClient(
+        'parallel-delete-file2.txt',
+      );
+      expect(await blockBlobClient2.exists()).toBe(false);
+
+      const blobServiceClient3 = BlobServiceClient.fromConnectionString(
+        account3ConnectionString,
+      );
+      const containerClient3 =
+        blobServiceClient3.getContainerClient('test-container');
+      const blockBlobClient3 = containerClient3.getBlockBlobClient(
+        'parallel-delete-file3.txt',
+      );
+      expect(await blockBlobClient3.exists()).toBe(false);
+    });
+
+    it('should fail with invalid storage account ID', async () => {
+      const data: DeleteFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-nonexistent-account',
+            container: 'test-container',
+            fileName: 'test-file.txt',
+          },
+        ],
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .delete('/v1/files/delete')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.NOT_FOUND);
+      expect(body.message).toContain('Storage account not found');
+      expect(body.message).toContain('azure-nonexistent-account');
+    });
+
+    it('should fail with unsupported storage type', async () => {
+      const data: DeleteFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 's3-invalid-account',
+            container: 'test-container',
+            fileName: 'test-file.txt',
+          },
+        ],
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .delete('/v1/files/delete')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toContain('Storage type not supported');
+      expect(body.message).toContain('s3-invalid-account');
+    });
+
+    it('should fail when container does not exist', async () => {
+      const data: DeleteFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'nonexistent-container',
+            fileName: 'test-file.txt',
+          },
+        ],
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .delete('/v1/files/delete')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.NOT_FOUND);
+      expect(body.message).toContain('Container not found');
+      expect(body.message).toContain('nonexistent-container');
+      expect(body.message).toContain('azure-testaccount1');
+    });
+
+    it('should fail when blob does not exist', async () => {
+      const data: DeleteFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'test-container',
+            fileName: 'nonexistent-file.txt',
+          },
+        ],
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .delete('/v1/files/delete')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.NOT_FOUND);
+      expect(body.message).toContain('Blob not found');
+      expect(body.message).toContain('nonexistent-file.txt');
+      expect(body.message).toContain('test-container');
       expect(body.message).toContain('azure-testaccount1');
     });
   });

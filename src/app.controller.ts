@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Post,
   Query,
@@ -14,6 +15,7 @@ import {
   CopyFileBodyDto,
   CreateFileBodyDto,
   DataWithMetaResponseDto,
+  DeleteFileBodyDto,
   FileDto,
   ListFilesQueryDto,
   LocalFilesListMetaDto,
@@ -69,5 +71,12 @@ export class AppController {
   @ApiOperation({ summary: 'Create a file in storage' })
   async createFile(@Body() data: CreateFileBodyDto): Promise<void> {
     return this.appService.createFile(data);
+  }
+
+  @Version('1')
+  @Delete('/files/delete')
+  @ApiOperation({ summary: 'Delete a file from storage' })
+  async deleteFile(@Body() data: DeleteFileBodyDto): Promise<void> {
+    return this.appService.deleteFile(data);
   }
 }

@@ -2,8 +2,6 @@
 
 A generic service to transfer files between different storage backends (local filesystem, S3, Azure Blob, etc.)
 
----
-
 ## Local Development
 
 To develop the Storage Ferry, it's recommended to have [nvm](https://github.com/nvm-sh/nvm) installed, which will ensure you
@@ -26,8 +24,6 @@ docker compose up localstack azurite
 npm run start:dev
 ```
 
----
-
 ## Coding Standards
 
 Linting and formatting is done with [ESLint](https://eslint.org/) and [Prettier](https://prettier.io/).
@@ -40,18 +36,16 @@ npm run lint:check
 npm run format:check
 ```
 
----
-
 ## Running Tests
 
 ```sh
-# Run localstack and azurite - tests will fail otherwise
+# Run localstack and azurite - e2e tests will fail otherwise
 docker compose up localstack azurite
-# Run e2e tests locally
+# Run unit tests
+npm run test
+# Run e2e tests
 npm run test:e2e
 ```
-
----
 
 ## Docker
 
@@ -65,14 +59,10 @@ docker compose build
 docker compose up
 ```
 
----
-
 ## Swagger Documentation
 
 Automatically generated API documentation can be found
 at [http://localhost:3000/documentation](http://localhost:3000/documentation)
-
----
 
 ## Endpoints
 
@@ -91,8 +81,6 @@ Lists all available storage accounts configured in the system. You can use these
 ```
 
 **Note:** Currently, only Azure Blob Storage is supported. Account IDs follow the format `azure-{account-name}` (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
-
----
 
 ### POST `/v1/files/create`
 
@@ -135,7 +123,44 @@ Creates a file in storage at one or more specified locations. The same content i
 
 **Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
 
----
+### DELETE `/v1/files/delete`
+
+Deletes a file from storage at one or more specified locations.
+
+**Request Body:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-buerokratt8481675820",
+      "container": "my-container",
+      "fileName": "path/to/file.json"
+    }
+  ]
+}
+```
+
+**Example with multiple locations:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-buerokratt8481675820",
+      "container": "container1",
+      "fileName": "file1.json"
+    },
+    {
+      "storageAccountId": "azure-buerokratt1234567890",
+      "container": "container2",
+      "fileName": "file2.json"
+    }
+  ]
+}
+```
+
+**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
 
 ## Environment Variables
 
