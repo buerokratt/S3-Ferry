@@ -18,6 +18,10 @@ services:
     environment:
       - SERVICES=s3:4566
     volumes:
+      # This creates a test bucket
+      # Not strictly necessary if using test-driven approach for development
+      # Tests are configured in a way that they create the containers themselves
+      # But this is useful as an example that can be used in other repos
       - ./localstack-init.sh:/etc/localstack/init/ready.d/init.sh
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:latest
@@ -29,5 +33,18 @@ services:
       - AZURITE_ACCOUNTS=testaccount1:dGVzdGtleTE9PQ==;testaccount2:dGVzdGtleTI9PQ==;testaccount3:dGVzdGtleTM9PQ==
     volumes:
       - azurite-data:/data
+  # This creates a test container
+  # Not strictly necessary if using test-driven approach for development
+  # Tests are configured in a way that they create the containers themselves
+  # But this is useful as an example that can be used in other repos
+  azurite-init:
+    image: node:24-alpine
+    depends_on:
+      - azurite
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./azurite-init.sh:/azurite-init.sh:ro
+    entrypoint: /bin/sh
+    command: -c "apk add --no-cache curl && /azurite-init.sh"
 volumes:
   azurite-data:
