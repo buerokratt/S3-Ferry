@@ -464,7 +464,7 @@ describe('AppController (e2e)', () => {
       await createBlob(
         account1ConnectionString,
         'test-container',
-        'delete-test-file.txt',
+        'delete-test-file.json',
         '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
       );
 
@@ -491,7 +491,7 @@ describe('AppController (e2e)', () => {
       const containerClient =
         blobServiceClient.getContainerClient('test-container');
       const blockBlobClient = containerClient.getBlockBlobClient(
-        'delete-test-file.txt',
+        'delete-test-file.json',
       );
       const exists = await blockBlobClient.exists();
       expect(exists).toBe(false);
