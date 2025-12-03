@@ -1,7 +1,7 @@
 /* eslint-disable */
 const { BlobServiceClient } = require('@azure/storage-blob');
 
-const containers = ['test-container']; // Add more container names as needed
+const containers = ['buerokratt']; // Add more container names as needed
 
 const connectionString =
   'DefaultEndpointsProtocol=http;AccountName=testaccount1;AccountKey=dGVzdGtleTE9PQ==;BlobEndpoint=http://azurite:10000/testaccount1;QueueEndpoint=http://azurite:10001/testaccount1;TableEndpoint=http://azurite:10002/testaccount1;';
