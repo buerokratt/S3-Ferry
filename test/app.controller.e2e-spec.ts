@@ -661,7 +661,7 @@ describe('AppController (e2e)', () => {
 
       expect(status).toBe(HttpStatus.NOT_FOUND);
       expect(body.message).toContain('Blob not found');
-      expect(body.message).toContain('nonexistent-file.txt');
+      expect(body.message).toContain('nonexistent-file.json');
       expect(body.message).toContain('test-container');
       expect(body.message).toContain('azure-testaccount1');
     });
