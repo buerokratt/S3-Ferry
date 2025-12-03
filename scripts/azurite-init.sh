@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+apk add --no-cache curl
+
 # Wait for Azurite to be ready
 echo "Waiting for Azurite to be ready..."
 until curl -s http://azurite:10000 > /dev/null 2>&1; do

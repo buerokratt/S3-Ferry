@@ -44,6 +44,6 @@ services:
     volumes:
       - ./scripts:/scripts:ro
     entrypoint: /bin/sh
-    command: -c "apk add --no-cache curl && /scripts/azurite-init.sh"
+    command: -c "/scripts/azurite-init.sh"
 volumes:
   azurite-data:
