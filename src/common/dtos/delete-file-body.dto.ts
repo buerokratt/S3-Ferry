@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsString, Validate, ValidateNested } from 'class-validator';
+
+import { PathConstraint } from '../validators';
 
 export class DeleteFileBodyDto {
   @IsArray()
@@ -13,8 +15,10 @@ class FileLocationDto {
   readonly storageAccountId!: string;
 
   @IsString()
+  @Validate(PathConstraint)
   readonly container!: string;
 
   @IsString()
+  @Validate(PathConstraint)
   readonly fileName!: string;
 }
