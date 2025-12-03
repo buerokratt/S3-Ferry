@@ -252,10 +252,10 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-testaccount1',
             container: 'test-container',
-            fileName: 'test-file.txt',
+            fileName: '77eadbf3-cff9-4b11-b8de-46f37a029fd8.json',
           },
         ],
-        content: 'Hello, World!',
+        content: '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
       };
 
       const { status } = await request(app.getHttpServer())
@@ -271,20 +271,20 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-testaccount1',
             container: 'test-container',
-            fileName: 'file1.txt',
+            fileName: 'file1.json',
           },
           {
             storageAccountId: 'azure-testaccount2',
             container: 'test-container',
-            fileName: 'file2.txt',
+            fileName: 'file2.json',
           },
           {
             storageAccountId: 'azure-testaccount3',
             container: 'test-container',
-            fileName: 'file3.txt',
+            fileName: 'file3.json',
           },
         ],
-        content: 'Shared content for all files',
+        content: '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
       };
 
       const { status } = await request(app.getHttpServer())
@@ -310,9 +310,9 @@ describe('AppController (e2e)', () => {
       for await (const blob of containerClient1.listBlobsFlat()) {
         blobs1.push(blob.name);
       }
-      expect(blobs1).toContain('file1.txt');
-      expect(blobs1).not.toContain('file2.txt');
-      expect(blobs1).not.toContain('file3.txt');
+      expect(blobs1).toContain('file1.json');
+      expect(blobs1).not.toContain('file2.json');
+      expect(blobs1).not.toContain('file3.json');
 
       // Check account 2
       const blobServiceClient2 = BlobServiceClient.fromConnectionString(
@@ -324,9 +324,9 @@ describe('AppController (e2e)', () => {
       for await (const blob of containerClient2.listBlobsFlat()) {
         blobs2.push(blob.name);
       }
-      expect(blobs2).toContain('file2.txt');
-      expect(blobs2).not.toContain('file1.txt');
-      expect(blobs2).not.toContain('file3.txt');
+      expect(blobs2).toContain('file2.json');
+      expect(blobs2).not.toContain('file1.json');
+      expect(blobs2).not.toContain('file3.json');
 
       // Check account 3
       const blobServiceClient3 = BlobServiceClient.fromConnectionString(
@@ -338,9 +338,9 @@ describe('AppController (e2e)', () => {
       for await (const blob of containerClient3.listBlobsFlat()) {
         blobs3.push(blob.name);
       }
-      expect(blobs3).toContain('file3.txt');
-      expect(blobs3).not.toContain('file1.txt');
-      expect(blobs3).not.toContain('file2.txt');
+      expect(blobs3).toContain('file3.json');
+      expect(blobs3).not.toContain('file1.json');
+      expect(blobs3).not.toContain('file2.json');
     });
 
     it('should fail with invalid storage account ID', async () => {
@@ -349,10 +349,10 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-nonexistent-account',
             container: 'test-container',
-            fileName: 'test-file.txt',
+            fileName: 'test-file.json',
           },
         ],
-        content: 'Hello, World!',
+        content: '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
       };
 
       const { status, body } = await request(app.getHttpServer())
@@ -370,10 +370,10 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 's3-invalid-account',
             container: 'test-container',
-            fileName: 'test-file.txt',
+            fileName: 'test-file.json',
           },
         ],
-        content: 'Hello, World!',
+        content: '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
       };
 
       const { status, body } = await request(app.getHttpServer())
@@ -391,10 +391,10 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-testaccount1',
             container: 'nonexistent-container',
-            fileName: 'test-file.txt',
+            fileName: 'test-file.json',
           },
         ],
-        content: 'Hello, World!',
+        content: '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
       };
 
       const { status, body } = await request(app.getHttpServer())
@@ -465,7 +465,7 @@ describe('AppController (e2e)', () => {
         account1ConnectionString,
         'test-container',
         'delete-test-file.txt',
-        'Content to be deleted',
+        '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
       );
 
       const data: DeleteFileBodyDto = {
@@ -473,7 +473,7 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-testaccount1',
             container: 'test-container',
-            fileName: 'delete-test-file.txt',
+            fileName: 'delete-test-file.json',
           },
         ],
       };
@@ -508,20 +508,20 @@ describe('AppController (e2e)', () => {
         createBlob(
           account1ConnectionString,
           'test-container',
-          'parallel-delete-file1.txt',
-          'Content 1',
+          'parallel-delete-file1.json',
+          '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
         ),
         createBlob(
           account2ConnectionString,
           'test-container',
-          'parallel-delete-file2.txt',
-          'Content 2',
+          'parallel-delete-file2.json',
+          '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
         ),
         createBlob(
           account3ConnectionString,
           'test-container',
-          'parallel-delete-file3.txt',
-          'Content 3',
+          'parallel-delete-file3.json',
+          '[{"id":1,"name":"item1"},{"id":2,"name":"item2"}]',
         ),
       ]);
 
@@ -530,17 +530,17 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-testaccount1',
             container: 'test-container',
-            fileName: 'parallel-delete-file1.txt',
+            fileName: 'parallel-delete-file1.json',
           },
           {
             storageAccountId: 'azure-testaccount2',
             container: 'test-container',
-            fileName: 'parallel-delete-file2.txt',
+            fileName: 'parallel-delete-file2.json',
           },
           {
             storageAccountId: 'azure-testaccount3',
             container: 'test-container',
-            fileName: 'parallel-delete-file3.txt',
+            fileName: 'parallel-delete-file3.json',
           },
         ],
       };
@@ -558,7 +558,7 @@ describe('AppController (e2e)', () => {
       const containerClient1 =
         blobServiceClient1.getContainerClient('test-container');
       const blockBlobClient1 = containerClient1.getBlockBlobClient(
-        'parallel-delete-file1.txt',
+        'parallel-delete-file1.json',
       );
       expect(await blockBlobClient1.exists()).toBe(false);
 
@@ -568,7 +568,7 @@ describe('AppController (e2e)', () => {
       const containerClient2 =
         blobServiceClient2.getContainerClient('test-container');
       const blockBlobClient2 = containerClient2.getBlockBlobClient(
-        'parallel-delete-file2.txt',
+        'parallel-delete-file2.json',
       );
       expect(await blockBlobClient2.exists()).toBe(false);
 
@@ -578,7 +578,7 @@ describe('AppController (e2e)', () => {
       const containerClient3 =
         blobServiceClient3.getContainerClient('test-container');
       const blockBlobClient3 = containerClient3.getBlockBlobClient(
-        'parallel-delete-file3.txt',
+        'parallel-delete-file3.json',
       );
       expect(await blockBlobClient3.exists()).toBe(false);
     });
@@ -589,7 +589,7 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-nonexistent-account',
             container: 'test-container',
-            fileName: 'test-file.txt',
+            fileName: 'test-file.json',
           },
         ],
       };
@@ -609,7 +609,7 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 's3-invalid-account',
             container: 'test-container',
-            fileName: 'test-file.txt',
+            fileName: 'test-file.json',
           },
         ],
       };
@@ -629,7 +629,7 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-testaccount1',
             container: 'nonexistent-container',
-            fileName: 'test-file.txt',
+            fileName: 'test-file.json',
           },
         ],
       };
@@ -650,7 +650,7 @@ describe('AppController (e2e)', () => {
           {
             storageAccountId: 'azure-testaccount1',
             container: 'test-container',
-            fileName: 'nonexistent-file.txt',
+            fileName: 'nonexistent-file.json',
           },
         ],
       };
