@@ -3,23 +3,28 @@ import * as path from 'path';
 
 import { Inject, Injectable } from '@nestjs/common';
 
-import { DataWithMetaResponseDto } from '../common/dtos';
-import { appConfigFactory } from '../config';
-import { FileDto, LocalFilesListMetaDto } from '../dtos';
-import { AppConfig } from '../interfaces';
+import {
+  DataWithMetaResponseDto,
+  FileDto,
+  LocalFilesListMetaDto,
+} from '../../common/dtos';
+import { fsConfigFactory } from '../config';
+import { FsConfig } from '../config/fs.config.interface';
 
 @Injectable()
 export class FsService {
-  constructor(
-    @Inject(appConfigFactory.KEY) private readonly config: AppConfig,
-  ) {}
+  constructor(@Inject(fsConfigFactory.KEY) private readonly config: FsConfig) {}
+
+  getDataDirectoryPath(): string {
+    return this.config.dataDirectoryPath;
+  }
 
   listFiles(): DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto> {
     const files: FileDto[] = [];
 
-    for (const file of fs.readdirSync(this.config.fsDataDirectoryPath)) {
+    for (const file of fs.readdirSync(this.config.dataDirectoryPath)) {
       const fileStats = fs.statSync(
-        path.join(this.config.fsDataDirectoryPath, file),
+        path.join(this.config.dataDirectoryPath, file),
       );
 
       if (fileStats.isFile()) {

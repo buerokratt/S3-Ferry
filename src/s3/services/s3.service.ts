@@ -10,27 +10,32 @@ import {
 } from '@aws-sdk/client-s3';
 import { Inject, Injectable } from '@nestjs/common';
 
-import { DataWithMetaResponseDto } from '../common/dtos';
-import { FileNotFoundException } from '../common/exceptions';
-import { appConfigFactory } from '../config';
-import { FileDto, LocalFilesListMetaDto } from '../dtos';
-import { AppConfig } from '../interfaces';
+import {
+  DataWithMetaResponseDto,
+  FileDto,
+  LocalFilesListMetaDto,
+} from '../../common/dtos';
+import { FileNotFoundException } from '../../common/exceptions';
+import { s3ConfigFactory } from '../config';
+import { S3Config } from '../config/s3.config.interface';
 
 @Injectable()
 export class S3Service {
   private readonly s3: S3;
 
-  constructor(
-    @Inject(appConfigFactory.KEY) private readonly config: AppConfig,
-  ) {
+  constructor(@Inject(s3ConfigFactory.KEY) private readonly config: S3Config) {
     this.s3 = new S3({
       credentials: {
-        accessKeyId: config.s3AccessKeyId,
-        secretAccessKey: config.s3SecretAccessKey,
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
       },
-      ...(config.s3EndpointUrl && { endpoint: config.s3EndpointUrl }),
+      ...(config.endpointUrl && { endpoint: config.endpointUrl }),
       forcePathStyle: true,
-      region: config.s3Region,
+      region: config.region,
+      // Disable automatic checksum calculation to avoid compatibility issues with LocalStack
+      // LocalStack doesn't fully support AWS SDK v3's flexible checksums middleware,
+      // which can cause errors like "'NoneType' object has no attribute 'to_bytes'"
+      requestChecksumCalculation: 'WHEN_REQUIRED',
     });
   }
 
@@ -38,7 +43,7 @@ export class S3Service {
     DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto>
   > {
     const response = await this.s3.listObjectsV2({
-      Bucket: this.config.s3DataBucketName,
+      Bucket: this.config.dataBucketName,
     });
     const files: FileDto[] = [];
 
@@ -62,17 +67,18 @@ export class S3Service {
   async copyFileFromRemoteToLocal(
     destinationFilePath: string,
     sourceFilePath: string,
+    fsDataDirectoryPath: string,
   ): Promise<void> {
     try {
       const response = await this.s3.send(
         new GetObjectCommand({
-          Bucket: this.config.s3DataBucketName,
-          Key: path.join(this.config.s3DataBucketPath, sourceFilePath),
+          Bucket: this.config.dataBucketName,
+          Key: path.join(this.config.dataBucketPath, sourceFilePath),
         }),
       );
 
       const writeStream = fs.createWriteStream(
-        path.join(this.config.fsDataDirectoryPath, destinationFilePath),
+        path.join(fsDataDirectoryPath, destinationFilePath),
       );
 
       await new Promise<void>((resolve, reject) => {
@@ -91,19 +97,22 @@ export class S3Service {
   async copyFileFromLocalToRemote(
     sourceFilePath: string,
     destinationFilePath: string,
+    fsDataDirectoryPath: string,
   ): Promise<void> {
     const fileExists = fs.existsSync(
-      path.join(this.config.fsDataDirectoryPath, sourceFilePath),
+      path.join(fsDataDirectoryPath, sourceFilePath),
     );
     if (!fileExists) throw new FileNotFoundException('File not found in FS');
 
+    const fileBuffer = fs.readFileSync(
+      path.join(fsDataDirectoryPath, sourceFilePath),
+    );
+
     await this.s3.send(
       new PutObjectCommand({
-        Bucket: this.config.s3DataBucketName,
-        Body: fs.createReadStream(
-          path.join(this.config.fsDataDirectoryPath, sourceFilePath),
-        ),
-        Key: path.join(this.config.s3DataBucketPath, destinationFilePath),
+        Bucket: this.config.dataBucketName,
+        Body: fileBuffer,
+        Key: path.join(this.config.dataBucketPath, destinationFilePath),
       }),
     );
   }
