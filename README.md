@@ -77,6 +77,8 @@ All endpoints that accept file location data validate the following:
   - `fileName`: Must be a string matching the same path constraints as `container`
 - For create operations, `content` must be a non-empty string
 
+Failing the validation will result in a `400` Bad Request error.
+
 ### GET `/v1/storage-accounts`
 
 Lists all available storage accounts configured in the system. You can use these IDs to make requests to the other endpoints.
