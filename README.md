@@ -66,6 +66,17 @@ at [http://localhost:3000/documentation](http://localhost:3000/documentation)
 
 ## Endpoints
 
+### Request Body Validation
+
+All endpoints that accept file location data validate the following:
+
+- `files`: Must be a non-empty array of file location objects
+- Each file location object requires:
+  - `storageAccountId`: Must be a string starting with `azure-` prefix (currently only Azure Blob Storage is supported)
+  - `container`: Must be a string matching path constraints (alphanumeric, dashes, dots, underscores, and forward slashes only; no path traversal sequences)
+  - `fileName`: Must be a string matching the same path constraints as `container`
+- For create operations, `content` must be a non-empty string
+
 ### GET `/v1/storage-accounts`
 
 Lists all available storage accounts configured in the system. You can use these IDs to make requests to the other endpoints.
@@ -121,7 +132,7 @@ Creates a file in storage at one or more specified locations. The same content i
 }
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
 
 ### DELETE `/v1/files/delete`
 
@@ -160,7 +171,7 @@ Deletes a file from storage at one or more specified locations.
 }
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
 
 ## Environment Variables
 
