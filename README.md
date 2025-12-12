@@ -101,11 +101,13 @@ Lists all available storage accounts configured in the system. You can use these
 | ----------- | ------------------------------------------------------------------------ |
 | `500`       | Unexpected internal server error occurred while listing storage accounts |
 
+All errors are also logged in server logs.
+
 ### POST `/v1/files/create`
 
 Creates a file in storage at one or more specified locations. The same content is used for all file locations.
 
-**Request Body:**
+**Request body:**
 
 ```json
 {
@@ -120,7 +122,7 @@ Creates a file in storage at one or more specified locations. The same content i
 }
 ```
 
-**Example with multiple locations:**
+**Request body with multiple locations:**
 
 ```json
 {
@@ -150,11 +152,13 @@ Creates a file in storage at one or more specified locations. The same content i
 | `404`       | Not found - Storage account not found or container not found                                                        |
 | `500`       | Unexpected internal server error occurred while creating the file                                                   |
 
+All errors are also logged in server logs.
+
 ### DELETE `/v1/files/delete`
 
 Deletes a file from storage at one or more specified locations.
 
-**Request Body:**
+**Request body:**
 
 ```json
 {
@@ -168,7 +172,7 @@ Deletes a file from storage at one or more specified locations.
 }
 ```
 
-**Example with multiple locations:**
+**Request body with multiple locations:**
 
 ```json
 {
@@ -196,6 +200,8 @@ Deletes a file from storage at one or more specified locations.
 | `400`       | Bad request - Request body validation failed or storage type not supported (account ID doesn't start with `azure-`) |
 | `404`       | Not found - Storage account not found, container not found, or blob not found                                       |
 | `500`       | Unexpected internal server error occurred while deleting the file                                                   |
+
+All errors are also logged in server logs.
 
 ## Environment Variables
 
