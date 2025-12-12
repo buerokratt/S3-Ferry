@@ -91,7 +91,13 @@ Lists all available storage accounts configured in the system. You can use these
 ]
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported. Account IDs follow the format `azure-{account-name}` (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                              |
+| ----------- | ------------------------------------------------------------------------ |
+| `500`       | Unexpected internal server error occurred while listing storage accounts |
 
 ### POST `/v1/files/create`
 
@@ -134,6 +140,14 @@ Creates a file in storage at one or more specified locations. The same content i
 
 **Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
 
+**Errors:**
+
+| Status Code | Description                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `400`       | Bad request - Request body validation failed or storage type not supported (account ID doesn't start with `azure-`) |
+| `404`       | Not found - Storage account not found or container not found                                                        |
+| `500`       | Unexpected internal server error occurred while creating the file                                                   |
+
 ### DELETE `/v1/files/delete`
 
 Deletes a file from storage at one or more specified locations.
@@ -172,6 +186,14 @@ Deletes a file from storage at one or more specified locations.
 ```
 
 **Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `400`       | Bad request - Request body validation failed or storage type not supported (account ID doesn't start with `azure-`) |
+| `404`       | Not found - Storage account not found, container not found, or blob not found                                       |
+| `500`       | Unexpected internal server error occurred while deleting the file                                                   |
 
 ## Environment Variables
 
