@@ -191,6 +191,10 @@ Deletes a file from storage at one or more specified locations.
 }
 ```
 
+**Response:**
+
+The response body is empty on success (HTTP `200`).
+
 **Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
 
 **Errors:**
