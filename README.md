@@ -66,6 +66,19 @@ at [http://localhost:3000/documentation](http://localhost:3000/documentation)
 
 ## Endpoints
 
+### Request Body Validation
+
+All endpoints that accept file location data validate the following:
+
+- `files`: Must be a non-empty array of file location objects
+- Each file location object requires:
+  - `storageAccountId`: Must be a string starting with `azure-` prefix (currently only Azure Blob Storage is supported)
+  - `container`: Must be a string matching path constraints (alphanumeric, dashes, dots, underscores, and forward slashes only; no path traversal sequences)
+  - `fileName`: Must be a string matching the same path constraints as `container`
+- For create operations, `content` must be a non-empty string
+
+Failing the validation will result in a `400` Bad Request error.
+
 ### GET `/v1/storage-accounts`
 
 Lists all available storage accounts configured in the system. You can use these IDs to make requests to the other endpoints.
@@ -80,13 +93,21 @@ Lists all available storage accounts configured in the system. You can use these
 ]
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported. Account IDs follow the format `azure-{account-name}` (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                              |
+| ----------- | ------------------------------------------------------------------------ |
+| `500`       | Unexpected internal server error occurred while listing storage accounts |
+
+All errors are also logged in server logs.
 
 ### POST `/v1/files/create`
 
 Creates a file in storage at one or more specified locations. The same content is used for all file locations.
 
-**Request Body:**
+**Request body:**
 
 ```json
 {
@@ -101,7 +122,7 @@ Creates a file in storage at one or more specified locations. The same content i
 }
 ```
 
-**Example with multiple locations:**
+**Request body with multiple locations:**
 
 ```json
 {
@@ -121,13 +142,23 @@ Creates a file in storage at one or more specified locations. The same content i
 }
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `400`       | Bad request - Request body validation failed or storage type not supported (account ID doesn't start with `azure-`) |
+| `404`       | Not found - Storage account not found or container not found                                                        |
+| `500`       | Unexpected internal server error occurred while creating the file                                                   |
+
+All errors are also logged in server logs.
 
 ### DELETE `/v1/files/delete`
 
 Deletes a file from storage at one or more specified locations.
 
-**Request Body:**
+**Request body:**
 
 ```json
 {
@@ -141,7 +172,7 @@ Deletes a file from storage at one or more specified locations.
 }
 ```
 
-**Example with multiple locations:**
+**Request body with multiple locations:**
 
 ```json
 {
@@ -160,7 +191,21 @@ Deletes a file from storage at one or more specified locations.
 }
 ```
 
-**Note:** Currently, only Azure Blob Storage is supported for this endpoint. The `storageAccountId` must start with `azure-` prefix (e.g., `azure-buerokratt8481675820`). See [Azure Environment Variables](#azure) for more information.
+**Response:**
+
+The response body is empty on success (HTTP `200`).
+
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `400`       | Bad request - Request body validation failed or storage type not supported (account ID doesn't start with `azure-`) |
+| `404`       | Not found - Storage account not found, container not found, or blob not found                                       |
+| `500`       | Unexpected internal server error occurred while deleting the file                                                   |
+
+All errors are also logged in server logs.
 
 ## Environment Variables
 
@@ -176,9 +221,9 @@ Environment variables and their meaning is defined below.
 
 ### Azure
 
-| Variable                            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AZURE_ACCOUNT_*_CONNECTION_STRING` | Azure Storage account connection string. The asterisk (`*`) represents a number (e.g., `AZURE_ACCOUNT_1_CONNECTION_STRING`, `AZURE_ACCOUNT_2_CONNECTION_STRING`). You can define multiple accounts by using different numbers. The connection string can include `BlobEndpoint` parameter to use custom endpoints (e.g., Azurite for local development). Note: While technically supported, there are very few production-ready Azure-compatible services compared to S3-compatible alternatives. See `config/test.env` for examples. |
+| Variable                            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AZURE_ACCOUNT_*_CONNECTION_STRING` | Azure Storage account connection string. The asterisk (`*`) represents a number (e.g., `AZURE_ACCOUNT_1_CONNECTION_STRING`, `AZURE_ACCOUNT_2_CONNECTION_STRING`). You can define multiple accounts by using different numbers. The connection string can include `BlobEndpoint` parameter to use custom endpoints (e.g., Azurite for local development). See `config/test.env` for examples. <br/><br/>**Account ID Generation:** The account ID is generated from the connection string as `azure-{accountName}`, where `accountName` is extracted from the `AccountName` parameter in the connection string (e.g., `AccountName=myaccount` → ID: `azure-myaccount`). If the `AccountName` cannot be extracted from the connection string, the system falls back to using the account number from the environment variable name (e.g., `AZURE_ACCOUNT_1_CONNECTION_STRING` → ID: `azure-1`). |
 
 ### S3
 
