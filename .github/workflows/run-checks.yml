@@ -1,0 +1,78 @@
+name: Run checks
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'config/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+  pull_request:
+    types: [opened, ready_for_review, reopened, synchronize]
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'config/**'
+      - '.github/**'
+      - 'package.json'
+      - 'package-lock.json'
+concurrency:
+  group: ${{ github.ref }}-checks
+  cancel-in-progress: true
+
+jobs:
+  format-check:
+    uses: ./.github/workflows/run-check.yml
+    with:
+      command: npm run format:check
+
+  lint-check:
+    uses: ./.github/workflows/run-check.yml
+    with:
+      command: npm run lint:check
+
+  test:
+    uses: ./.github/workflows/run-check.yml
+    with:
+      command: npm run test
+
+  test-e2e:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      localstack:
+        image: localstack/localstack:3.3.0
+        options: --name localstack
+        env:
+          SERVICES: 's3:4566'
+        ports:
+          - 4566:4566
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite:latest
+        options: --name azurite
+        env:
+          AZURITE_ACCOUNTS: 'testaccount1:dGVzdGtleTE9PQ==;testaccount2:dGVzdGtleTI9PQ==;testaccount3:dGVzdGtleTM9PQ=='
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run test:e2e
+
+  build:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build .
