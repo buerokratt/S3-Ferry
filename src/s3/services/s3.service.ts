@@ -9,6 +9,7 @@ import {
   S3,
 } from '@aws-sdk/client-s3';
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 
 import {
   DataWithMetaResponseDto,
@@ -17,33 +18,40 @@ import {
 } from '../../common/dtos';
 import { FileNotFoundException } from '../../common/exceptions';
 import { s3ConfigFactory } from '../config';
-import { S3Config } from '../config/s3.config.interface';
+import { S3_DEFAULT_CONFIG_KEY } from '../s3.constants';
 
 @Injectable()
 export class S3Service {
-  private readonly s3: S3;
+  private readonly s3Clients: Record<string, S3> = {};
 
-  constructor(@Inject(s3ConfigFactory.KEY) private readonly config: S3Config) {
-    this.s3 = new S3({
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-      ...(config.endpointUrl && { endpoint: config.endpointUrl }),
-      forcePathStyle: true,
-      region: config.region,
-      // Disable automatic checksum calculation to avoid compatibility issues with LocalStack
-      // LocalStack doesn't fully support AWS SDK v3's flexible checksums middleware,
-      // which can cause errors like "'NoneType' object has no attribute 'to_bytes'"
-      requestChecksumCalculation: 'WHEN_REQUIRED',
-    });
+  constructor(
+    @Inject(s3ConfigFactory.KEY)
+    private readonly config: ConfigType<typeof s3ConfigFactory>,
+  ) {
+    for (const [key, config] of Object.entries(this.config)) {
+      this.s3Clients[key] = new S3({
+        credentials: {
+          accessKeyId: config.accessKeyId,
+          secretAccessKey: config.secretAccessKey,
+        },
+        ...(config.endpointUrl && { endpoint: config.endpointUrl }),
+        forcePathStyle: true,
+        region: config.region,
+        // Disable automatic checksum calculation to avoid compatibility issues with LocalStack
+        // LocalStack doesn't fully support AWS SDK v3's flexible checksums middleware,
+        // which can cause errors like "'NoneType' object has no attribute 'to_bytes'"
+        requestChecksumCalculation: 'WHEN_REQUIRED',
+      });
+    }
   }
 
-  public async listFiles(): Promise<
-    DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto>
-  > {
-    const response = await this.s3.listObjectsV2({
-      Bucket: this.config.dataBucketName,
+  public async listFiles(
+    configKey?: keyof typeof this.s3Clients,
+  ): Promise<DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto>> {
+    configKey ??= S3_DEFAULT_CONFIG_KEY;
+    const s3 = this.s3Clients[configKey];
+    const response = await s3.listObjectsV2({
+      Bucket: this.config[configKey].dataBucketName,
     });
     const files: FileDto[] = [];
 
@@ -64,16 +72,20 @@ export class S3Service {
     return { data: files, meta: { count: files.length } };
   }
 
-  async copyFileFromRemoteToLocal(
+  public async copyFileFromRemoteToLocal(
     destinationFilePath: string,
     sourceFilePath: string,
     fsDataDirectoryPath: string,
+    configKey?: keyof typeof this.s3Clients,
   ): Promise<void> {
     try {
-      const response = await this.s3.send(
+      configKey ??= S3_DEFAULT_CONFIG_KEY;
+      const s3 = this.s3Clients[configKey];
+      const config = this.config[configKey];
+      const response = await s3.send(
         new GetObjectCommand({
-          Bucket: this.config.dataBucketName,
-          Key: path.join(this.config.dataBucketPath, sourceFilePath),
+          Bucket: config.dataBucketName,
+          Key: path.join(config.dataBucketPath, sourceFilePath),
         }),
       );
 
@@ -94,11 +106,14 @@ export class S3Service {
     }
   }
 
-  async copyFileFromLocalToRemote(
+  public async copyFileFromLocalToRemote(
     sourceFilePath: string,
     destinationFilePath: string,
     fsDataDirectoryPath: string,
+    configKey?: keyof typeof this.s3Clients,
   ): Promise<void> {
+    configKey ??= S3_DEFAULT_CONFIG_KEY;
+
     const fileExists = fs.existsSync(
       path.join(fsDataDirectoryPath, sourceFilePath),
     );
@@ -108,11 +123,13 @@ export class S3Service {
       path.join(fsDataDirectoryPath, sourceFilePath),
     );
 
-    await this.s3.send(
+    const s3 = this.s3Clients[configKey];
+    const config = this.config[configKey];
+    await s3.send(
       new PutObjectCommand({
-        Bucket: this.config.dataBucketName,
+        Bucket: config.dataBucketName,
         Body: fileBuffer,
-        Key: path.join(this.config.dataBucketPath, destinationFilePath),
+        Key: path.join(config.dataBucketPath, destinationFilePath),
       }),
     );
   }

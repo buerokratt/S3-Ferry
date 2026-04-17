@@ -1,17 +1,16 @@
+import { env } from 'process';
+
 import { registerAs } from '@nestjs/config';
 
-import { AppConfig } from '../interfaces';
 import { ConfigUtil } from '../utils';
 
-import { appConfigSchema } from './';
+import { AppConfigSchema } from './';
 
-export const appConfigFactory = registerAs('api', (): AppConfig => {
-  const env = ConfigUtil.validate(appConfigSchema);
-
-  return {
+export const appConfigFactory = registerAs('api', (): AppConfigSchema => {
+  return ConfigUtil.validate(AppConfigSchema, {
     corsOrigin: split(<string>env['API_CORS_ORIGIN']),
-    documentationEnabled: <boolean>env['API_DOCUMENTATION_ENABLED'],
-  };
+    documentationEnabled: <string>env['API_DOCUMENTATION_ENABLED'],
+  });
 });
 
 function split(value: string): string | string[] {

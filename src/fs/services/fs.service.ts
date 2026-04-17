@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 
 import {
   DataWithMetaResponseDto,
@@ -9,11 +10,13 @@ import {
   LocalFilesListMetaDto,
 } from '../../common/dtos';
 import { fsConfigFactory } from '../config';
-import { FsConfig } from '../config/fs.config.interface';
 
 @Injectable()
 export class FsService {
-  constructor(@Inject(fsConfigFactory.KEY) private readonly config: FsConfig) {}
+  constructor(
+    @Inject(fsConfigFactory.KEY)
+    private readonly config: ConfigType<typeof fsConfigFactory>,
+  ) {}
 
   getDataDirectoryPath(): string {
     return this.config.dataDirectoryPath;
