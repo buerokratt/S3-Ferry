@@ -13,6 +13,7 @@ import {
   ValidationPipe,
   VersioningType,
 } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import request from 'supertest';
@@ -28,8 +29,10 @@ import {
 import { StorageType } from '../src/common/enums';
 import { fsConfigFactory } from '../src/fs/config';
 import { s3ConfigFactory } from '../src/s3/config';
+import { S3_DEFAULT_CONFIG_KEY } from '../src/s3/s3.constants';
 
 describe('AppController (e2e)', () => {
+  const S3_TEST_CONFIG_KEY = 'test';
   let app: INestApplication;
   let fsDataDirectoryPath: string;
 
@@ -84,19 +87,25 @@ describe('AppController (e2e)', () => {
 
   describe('GET /v1/files', () => {
     beforeAll(async () => {
-      // Create S3 bucket before running S3-related tests
-      const s3Config = app.get(s3ConfigFactory.KEY);
-      const s3Client = new S3Client({
-        credentials: {
-          accessKeyId: s3Config.accessKeyId,
-          secretAccessKey: s3Config.secretAccessKey,
-        },
-        ...(s3Config.endpointUrl && { endpoint: s3Config.endpointUrl }),
-        forcePathStyle: true,
-        region: s3Config.region,
-      });
+      // Create S3 bucket(s) before running S3-related tests
+      const s3Config = app.get<ConfigType<typeof s3ConfigFactory>>(
+        s3ConfigFactory.KEY,
+      );
 
-      await ensureS3BucketExists(s3Client, s3Config.dataBucketName);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
+      for (const [_, config] of Object.entries(s3Config)) {
+        const s3Client = new S3Client({
+          credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+          },
+          ...(config.endpointUrl && { endpoint: config.endpointUrl }),
+          forcePathStyle: true,
+          region: config.region,
+        });
+
+        await ensureS3BucketExists(s3Client, config.dataBucketName);
+      }
     });
 
     it('should list local files', async () => {
@@ -127,11 +136,15 @@ describe('AppController (e2e)', () => {
 
       const { body, status } = await request(app.getHttpServer())
         .get('/v1/files')
-        .query({ type: StorageType.S3 });
-
+        .query({ type: StorageType.S3, configKey: S3_DEFAULT_CONFIG_KEY });
       expect(status).toBe(HttpStatus.OK);
-      expect(body.meta.count).toBe(1);
-      expect(plainToInstance(FileDto, body.data[0])).toEqual(
+      expect(body.meta.count).toBeGreaterThanOrEqual(1);
+      expect(
+        plainToInstance(
+          FileDto,
+          body.data.find((file: FileDto) => file.name === 'file.txt'),
+        ),
+      ).toEqual(
         expect.objectContaining({
           name: 'file.txt',
           lastModified: expect.any(String),
@@ -139,23 +152,104 @@ describe('AppController (e2e)', () => {
         }),
       );
     });
+
+    it('should keep default and test S3 configs isolated', async () => {
+      const data: CopyFileBodyDto = {
+        destinationFilePath: 'default-only-file.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: 'file.txt',
+        sourceStorageType: StorageType.FS,
+      };
+
+      await request(app.getHttpServer()).post('/v1/files/copy').send(data);
+
+      const defaultResponse = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.S3, configKey: S3_DEFAULT_CONFIG_KEY });
+
+      const testResponse = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.S3, configKey: S3_TEST_CONFIG_KEY });
+
+      expect(defaultResponse.status).toBe(HttpStatus.OK);
+      expect(testResponse.status).toBe(HttpStatus.OK);
+      expect(defaultResponse.body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'default-only-file.txt' }),
+        ]),
+      );
+      expect(testResponse.body.data).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'default-only-file.txt' }),
+        ]),
+      );
+    });
+
+    it('should fail when "configKey" is provided for Azure storage', async () => {
+      const { body, status } = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.AZURE, configKey: S3_DEFAULT_CONFIG_KEY });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"configKey" must be omitted when type is not S3',
+      ]);
+    });
+
+    it('should fail when "configKey" is provided for fs storage', async () => {
+      const { body, status } = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.FS, configKey: S3_DEFAULT_CONFIG_KEY });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"configKey" must be omitted when type is not S3',
+      ]);
+    });
+
+    it('should fail when invalid "configKey" is provided for S3 storage', async () => {
+      const configKey = 'invalid-config-key';
+      const { body, status } = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.S3, configKey });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toBe(`Invalid S3 config: "${configKey}"`);
+    });
+
+    it('should fail validation when "configKey" is empty for S3 storage', async () => {
+      const { body, status } = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.S3, configKey: '' });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"configKey" must be a non-empty string when type is S3',
+      ]);
+    });
   });
 
   describe('POST /v1/files/copy', () => {
     beforeAll(async () => {
-      // Create S3 bucket before running S3-related tests
-      const s3Config = app.get(s3ConfigFactory.KEY);
-      const s3Client = new S3Client({
-        credentials: {
-          accessKeyId: s3Config.accessKeyId,
-          secretAccessKey: s3Config.secretAccessKey,
-        },
-        ...(s3Config.endpointUrl && { endpoint: s3Config.endpointUrl }),
-        forcePathStyle: true,
-        region: s3Config.region,
-      });
+      // Create S3 bucket(s) before running S3-related tests
+      const s3Config = app.get<ConfigType<typeof s3ConfigFactory>>(
+        s3ConfigFactory.KEY,
+      );
 
-      await ensureS3BucketExists(s3Client, s3Config.dataBucketName);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/naming-convention
+      for (const [_, config] of Object.entries(s3Config)) {
+        const s3Client = new S3Client({
+          credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+          },
+          ...(config.endpointUrl && { endpoint: config.endpointUrl }),
+          forcePathStyle: true,
+          region: config.region,
+        });
+
+        await ensureS3BucketExists(s3Client, config.dataBucketName);
+      }
     });
 
     it('should copy local file to remote', async () => {
@@ -186,6 +280,136 @@ describe('AppController (e2e)', () => {
         .send(data);
 
       expect(status).toBe(HttpStatus.CREATED);
+    });
+
+    it('should copy local file to the explicit test S3 config', async () => {
+      const data: CopyFileBodyDto = {
+        destinationConfigKey: S3_TEST_CONFIG_KEY,
+        destinationFilePath: 'test-config-file.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: 'file.txt',
+        sourceStorageType: StorageType.FS,
+      };
+
+      const { status } = await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.CREATED);
+
+      const { body, status: listStatus } = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.S3, configKey: S3_TEST_CONFIG_KEY });
+
+      expect(listStatus).toBe(HttpStatus.OK);
+      expect(body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'test-config-file.txt' }),
+        ]),
+      );
+    });
+
+    it('should copy remote file from the explicit test S3 config to local', async () => {
+      const uploadData: CopyFileBodyDto = {
+        destinationConfigKey: S3_TEST_CONFIG_KEY,
+        destinationFilePath: 'test-remote-source.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: 'file.txt',
+        sourceStorageType: StorageType.FS,
+      };
+
+      await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(uploadData);
+
+      const downloadData: CopyFileBodyDto = {
+        destinationFilePath: 'downloaded-from-test.txt',
+        destinationStorageType: StorageType.FS,
+        sourceConfigKey: S3_TEST_CONFIG_KEY,
+        sourceFilePath: 'test-remote-source.txt',
+        sourceStorageType: StorageType.S3,
+      };
+
+      const { status } = await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(downloadData);
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(
+        fs.existsSync(
+          path.join(fsDataDirectoryPath, 'downloaded-from-test.txt'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should fail when invalid "destinationConfigKey" is provided for S3 copy', async () => {
+      const configKey = 'missing';
+      const data: CopyFileBodyDto = {
+        destinationConfigKey: configKey,
+        destinationFilePath: 'invalid-destination-config.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: 'file.txt',
+        sourceStorageType: StorageType.FS,
+      };
+
+      const { body, status } = await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toBe(`Invalid S3 config: "${configKey}"`);
+    });
+
+    it('should fail when invalid "sourceConfigKey" is provided for S3 copy', async () => {
+      const configKey = 'missing';
+      const data: CopyFileBodyDto = {
+        destinationFilePath: 'invalid-source-config.txt',
+        destinationStorageType: StorageType.FS,
+        sourceConfigKey: configKey,
+        sourceFilePath: 'file.txt',
+        sourceStorageType: StorageType.S3,
+      };
+
+      const { body, status } = await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toBe(`Invalid S3 config: "${configKey}"`);
+    });
+
+    it('should fail when "destinationConfigKey" is provided for fs copy destination', async () => {
+      const { body, status } = await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send({
+          destinationConfigKey: S3_TEST_CONFIG_KEY,
+          destinationFilePath: 'invalid-fs-destination-config.txt',
+          destinationStorageType: StorageType.FS,
+          sourceFilePath: 'file.txt',
+          sourceStorageType: StorageType.S3,
+        } satisfies CopyFileBodyDto);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"destinationConfigKey" must be omitted when destinationStorageType is not S3',
+      ]);
+    });
+
+    it('should fail when "sourceConfigKey" is provided for fs copy source', async () => {
+      const { body, status } = await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send({
+          destinationFilePath: 'invalid-fs-source-config.txt',
+          destinationStorageType: StorageType.S3,
+          sourceConfigKey: S3_TEST_CONFIG_KEY,
+          sourceFilePath: 'file.txt',
+          sourceStorageType: StorageType.FS,
+        } satisfies CopyFileBodyDto);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"sourceConfigKey" must be omitted when sourceStorageType is not S3',
+      ]);
     });
   });
 

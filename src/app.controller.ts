@@ -56,7 +56,7 @@ export class AppController {
   async listFiles(
     @Query() query: ListFilesQueryDto,
   ): Promise<DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto>> {
-    return await this.appService.listFiles(query.type);
+    return await this.appService.listFiles(query);
   }
 
   @Version('1')

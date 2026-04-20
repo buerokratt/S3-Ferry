@@ -12,6 +12,7 @@ import {
   DataWithMetaResponseDto,
   DeleteFileBodyDto,
   FileDto,
+  ListFilesQueryDto,
   LocalFilesListMetaDto,
   StorageAccountDto,
 } from '../common/dtos';
@@ -19,6 +20,7 @@ import { StorageType } from '../common/enums';
 import {
   FileNotFoundException,
   InternalServerException,
+  InvalidS3ConfigException,
 } from '../common/exceptions';
 import { FsService } from '../fs';
 import { S3Service } from '../s3';
@@ -35,15 +37,16 @@ export class AppService {
   ) {}
 
   async listFiles(
-    storageType: StorageType,
+    query: ListFilesQueryDto,
   ): Promise<DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto>> {
+    const { type: storageType, configKey } = query;
     try {
       switch (storageType) {
         case StorageType.FS:
           return this.fsService.listFiles();
 
         case StorageType.S3:
-          return await this.s3Service.listFiles();
+          return await this.s3Service.listFiles(configKey);
 
         default:
           throw new Error(`Storage type not supported: ${storageType}`);
@@ -64,6 +67,7 @@ export class AppService {
             data.destinationFilePath,
             data.sourceFilePath,
             this.fsService.getDataDirectoryPath(),
+            data.sourceConfigKey,
           );
           break;
 
@@ -72,6 +76,7 @@ export class AppService {
             data.sourceFilePath,
             data.destinationFilePath,
             this.fsService.getDataDirectoryPath(),
+            data.destinationConfigKey,
           );
           break;
       }
@@ -79,6 +84,7 @@ export class AppService {
       this.logger.error(
         `Copying files failed: ${error instanceof Error ? error.stack : String(error)}`,
       );
+      if (error instanceof InvalidS3ConfigException) throw error;
       throw error instanceof FileNotFoundException
         ? new FileNotFoundException(error.message)
         : new InternalServerException();
