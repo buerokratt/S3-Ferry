@@ -3,7 +3,10 @@ import * as path from 'path';
 
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
   HeadBucketCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { BlobServiceClient } from '@azure/storage-blob';
@@ -32,8 +35,11 @@ import { S3_DEFAULT_CONFIG_KEY } from '../src/s3/s3.constants';
 
 describe('AppController (e2e)', () => {
   const S3_TEST_CONFIG_KEY = 'test';
+  const S3_PAGINATION_CONFIG_KEY = 'pagination';
   const DEFAULT_FS_FIXTURE_FILE = 'default-root-file.txt';
   const TEST_FS_FIXTURE_FILE = 'test-root-file.txt';
+  // Intentionally exceeds the first S3 ListObjectsV2 page so pagination is exercised later.
+  const SHADOW_PAGINATION_TOTAL = 1111;
   let app: INestApplication;
   let defaultFsDataDirectoryPath: string;
   let testFsDataDirectoryPath: string;
@@ -58,6 +64,70 @@ describe('AppController (e2e)', () => {
         throw error;
       }
     }
+  }
+
+  /**
+   * The pagination e2e asserts the full bucket response, including `meta.count`.
+   * Clearing the dedicated pagination bucket before and after the case keeps that
+   * assertion deterministic and prevents leftover objects from previous runs.
+   */
+  async function deleteAllObjects(
+    s3Client: S3Client,
+    bucketName: string,
+  ): Promise<void> {
+    let continuationToken: string | undefined;
+    let hasMorePages = true;
+
+    while (hasMorePages) {
+      const response = await s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: bucketName,
+          ContinuationToken: continuationToken,
+        }),
+      );
+
+      for (const object of response.Contents ?? []) {
+        if (!object.Key) continue;
+        await s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: bucketName,
+            Key: object.Key,
+          }),
+        );
+      }
+
+      continuationToken = response.NextContinuationToken;
+      hasMorePages = Boolean(response.IsTruncated && continuationToken);
+    }
+  }
+
+  /**
+   * Seed more than one S3 listing page so the public `/v1/files` flow has to walk
+   * continuation tokens instead of returning a single `listObjectsV2` page. The
+   * generated names are deterministic, which makes the final equality assertion exact.
+   */
+  async function seedShadowPaginationObjects(
+    s3Client: S3Client,
+    bucketName: string,
+    prefix: string,
+  ): Promise<string[]> {
+    const keys = Array.from(
+      { length: SHADOW_PAGINATION_TOTAL },
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      (_, index) => `${prefix}${String(index + 1).padStart(4, '0')}.txt`,
+    );
+
+    for (const key of keys) {
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: bucketName,
+          Body: key,
+          Key: key,
+        }),
+      );
+    }
+
+    return keys;
   }
 
   beforeAll(async () => {
@@ -212,6 +282,53 @@ describe('AppController (e2e)', () => {
           size: 0,
         }),
       );
+    });
+
+    it(`should list ${SHADOW_PAGINATION_TOTAL} S3 files across shadow pagination`, async () => {
+      const s3Config = app.get<ConfigType<typeof s3ConfigFactory>>(
+        s3ConfigFactory.KEY,
+      );
+      const testS3Config = s3Config[S3_PAGINATION_CONFIG_KEY];
+      const testPrefix = `pagination-file-${Date.now()}-${process.pid}-`;
+      const s3Client = new S3Client({
+        credentials: {
+          accessKeyId: testS3Config.accessKeyId,
+          secretAccessKey: testS3Config.secretAccessKey,
+        },
+        ...(testS3Config.endpointUrl && {
+          endpoint: testS3Config.endpointUrl,
+        }),
+        forcePathStyle: true,
+        region: testS3Config.region,
+      });
+
+      let seededKeys: string[] = [];
+
+      try {
+        await deleteAllObjects(s3Client, testS3Config.dataBucketName);
+        seededKeys = await seedShadowPaginationObjects(
+          s3Client,
+          testS3Config.dataBucketName,
+          testPrefix,
+        );
+
+        const { body, status } = await request(app.getHttpServer())
+          .get('/v1/files')
+          .query({
+            type: StorageType.S3,
+            configKey: S3_PAGINATION_CONFIG_KEY,
+          });
+
+        const seededFileNames = body.data
+          .map((file: FileDto) => file.name)
+          .sort((left: string, right: string) => left.localeCompare(right));
+
+        expect(status).toBe(HttpStatus.OK);
+        expect(seededFileNames).toEqual(seededKeys);
+        expect(body.meta.count).toBe(SHADOW_PAGINATION_TOTAL);
+      } finally {
+        await deleteAllObjects(s3Client, testS3Config.dataBucketName);
+      }
     });
 
     it('should keep default and test S3 configs isolated', async () => {

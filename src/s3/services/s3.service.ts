@@ -61,23 +61,32 @@ export class S3Service {
 
     configKey ??= S3_DEFAULT_CONFIG_KEY;
     const s3 = this.s3Clients[configKey];
-    const response = await s3.listObjectsV2({
-      Bucket: this.config[configKey].dataBucketName,
-    });
     const files: FileDto[] = [];
+    let continuationToken: string | undefined;
+    let hasMorePages = true;
 
-    if (response.Contents) {
-      for (const file of response.Contents) {
-        if (!file.Key?.includes('/')) {
-          files.push(
-            new FileDto({
-              name: file.Key,
-              size: file.Size,
-              lastModified: file.LastModified,
-            }),
-          );
+    while (hasMorePages) {
+      const response = await s3.listObjectsV2({
+        Bucket: this.config[configKey].dataBucketName,
+        ...(continuationToken && { ContinuationToken: continuationToken }),
+      });
+
+      if (response.Contents) {
+        for (const file of response.Contents) {
+          if (!file.Key?.includes('/')) {
+            files.push(
+              new FileDto({
+                name: file.Key,
+                size: file.Size,
+                lastModified: file.LastModified,
+              }),
+            );
+          }
         }
       }
+
+      continuationToken = response.NextContinuationToken;
+      hasMorePages = Boolean(response.IsTruncated && continuationToken);
     }
 
     return { data: files, meta: { count: files.length } };
