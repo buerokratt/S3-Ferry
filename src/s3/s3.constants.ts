@@ -6,5 +6,6 @@ export const S3_ENV_FIELD_SUFFIX = [
   'SECRET_ACCESS_KEY',
   'DATA_BUCKET_NAME',
   'DATA_BUCKET_PATH',
+  'FS_DATA_DIRECTORY_PATH',
 ] as const;
 export const S3_ENV_PREFIX = 'S3_' as const;

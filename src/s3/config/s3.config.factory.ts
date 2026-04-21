@@ -32,6 +32,7 @@ export const s3ConfigFactory = registerAs(
           secretAccessKey: fields.SECRET_ACCESS_KEY,
           dataBucketName: fields.DATA_BUCKET_NAME,
           dataBucketPath: fields.DATA_BUCKET_PATH,
+          fsDataDirectoryPath: fields.FS_DATA_DIRECTORY_PATH,
         }),
       ]),
     );

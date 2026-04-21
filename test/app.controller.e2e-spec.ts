@@ -27,14 +27,16 @@ import {
   StorageAccountDto,
 } from '../src/common/dtos';
 import { StorageType } from '../src/common/enums';
-import { fsConfigFactory } from '../src/fs/config';
 import { s3ConfigFactory } from '../src/s3/config';
 import { S3_DEFAULT_CONFIG_KEY } from '../src/s3/s3.constants';
 
 describe('AppController (e2e)', () => {
   const S3_TEST_CONFIG_KEY = 'test';
+  const DEFAULT_FS_FIXTURE_FILE = 'default-root-file.txt';
+  const TEST_FS_FIXTURE_FILE = 'test-root-file.txt';
   let app: INestApplication;
-  let fsDataDirectoryPath: string;
+  let defaultFsDataDirectoryPath: string;
+  let testFsDataDirectoryPath: string;
 
   /**
    * Helper function to ensure an S3 bucket exists.
@@ -71,15 +73,32 @@ describe('AppController (e2e)', () => {
 
     await app.init();
 
-    fsDataDirectoryPath = app.get(fsConfigFactory.KEY).dataDirectoryPath;
+    const s3Config = app.get<ConfigType<typeof s3ConfigFactory>>(
+      s3ConfigFactory.KEY,
+    );
+    defaultFsDataDirectoryPath =
+      s3Config[S3_DEFAULT_CONFIG_KEY].fsDataDirectoryPath;
+    testFsDataDirectoryPath = s3Config[S3_TEST_CONFIG_KEY].fsDataDirectoryPath;
 
-    fs.mkdirSync(fsDataDirectoryPath, { recursive: true });
-    fs.writeFileSync(path.join(fsDataDirectoryPath, 'file.txt'), '');
+    fs.mkdirSync(defaultFsDataDirectoryPath, { recursive: true });
+    fs.mkdirSync(testFsDataDirectoryPath, { recursive: true });
+    fs.writeFileSync(
+      path.join(defaultFsDataDirectoryPath, DEFAULT_FS_FIXTURE_FILE),
+      '',
+    );
+    fs.writeFileSync(path.join(defaultFsDataDirectoryPath, 'file.txt'), '');
+    fs.writeFileSync(
+      path.join(testFsDataDirectoryPath, TEST_FS_FIXTURE_FILE),
+      '',
+    );
   });
 
   afterAll(async () => {
-    if (fsDataDirectoryPath) {
-      fs.rmSync(fsDataDirectoryPath, { recursive: true });
+    if (defaultFsDataDirectoryPath) {
+      fs.rmSync(defaultFsDataDirectoryPath, { force: true, recursive: true });
+    }
+    if (testFsDataDirectoryPath) {
+      fs.rmSync(testFsDataDirectoryPath, { force: true, recursive: true });
     }
 
     await app.close();
@@ -108,19 +127,61 @@ describe('AppController (e2e)', () => {
       }
     });
 
-    it('should list local files', async () => {
+    it('should list files from the default local root when config key is omitted', async () => {
       const { body, status } = await request(app.getHttpServer())
         .get('/v1/files')
         .query({ type: StorageType.FS });
 
       expect(status).toBe(HttpStatus.OK);
+      expect(body.meta.count).toBe(2);
+      expect(body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'file.txt',
+            lastModified: expect.any(String),
+            size: 0,
+          }),
+          expect.objectContaining({
+            name: DEFAULT_FS_FIXTURE_FILE,
+            lastModified: expect.any(String),
+            size: 0,
+          }),
+        ]),
+      );
+      expect(body.data).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: TEST_FS_FIXTURE_FILE,
+          }),
+        ]),
+      );
+    });
+
+    it('should list files from the keyed local root when config key is provided for FS storage', async () => {
+      const { body, status } = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.FS, configKey: S3_TEST_CONFIG_KEY });
+
+      expect(status).toBe(HttpStatus.OK);
       expect(body.meta.count).toBe(1);
-      expect(plainToInstance(FileDto, body.data[0])).toEqual(
-        expect.objectContaining({
-          name: 'file.txt',
-          lastModified: expect.any(String),
-          size: 0,
-        }),
+      expect(body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: TEST_FS_FIXTURE_FILE,
+            lastModified: expect.any(String),
+            size: 0,
+          }),
+        ]),
+      );
+      expect(body.data).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: DEFAULT_FS_FIXTURE_FILE,
+          }),
+          expect.objectContaining({
+            name: 'file.txt',
+          }),
+        ]),
       );
     });
 
@@ -192,18 +253,7 @@ describe('AppController (e2e)', () => {
 
       expect(status).toBe(HttpStatus.BAD_REQUEST);
       expect(body.message).toEqual([
-        '"configKey" must be omitted when type is not S3',
-      ]);
-    });
-
-    it('should fail when "configKey" is provided for fs storage', async () => {
-      const { body, status } = await request(app.getHttpServer())
-        .get('/v1/files')
-        .query({ type: StorageType.FS, configKey: S3_DEFAULT_CONFIG_KEY });
-
-      expect(status).toBe(HttpStatus.BAD_REQUEST);
-      expect(body.message).toEqual([
-        '"configKey" must be omitted when type is not S3',
+        '"configKey" must be omitted when type is not FS or S3',
       ]);
     });
 
@@ -214,7 +264,7 @@ describe('AppController (e2e)', () => {
         .query({ type: StorageType.S3, configKey });
 
       expect(status).toBe(HttpStatus.BAD_REQUEST);
-      expect(body.message).toBe(`Invalid S3 config: "${configKey}"`);
+      expect(body.message).toBe(`Invalid config key: "${configKey}"`);
     });
 
     it('should fail validation when "configKey" is empty for S3 storage', async () => {
@@ -224,7 +274,7 @@ describe('AppController (e2e)', () => {
 
       expect(status).toBe(HttpStatus.BAD_REQUEST);
       expect(body.message).toEqual([
-        '"configKey" must be a non-empty string when type is S3',
+        '"configKey" must be a non-empty string when type is FS or S3',
       ]);
     });
   });
@@ -252,11 +302,11 @@ describe('AppController (e2e)', () => {
       }
     });
 
-    it('should copy local file to remote', async () => {
+    it('should copy local file to the default S3 config when config key is omitted', async () => {
       const data: CopyFileBodyDto = {
-        destinationFilePath: 'file.txt',
+        destinationFilePath: 'default-root-upload.txt',
         destinationStorageType: StorageType.S3,
-        sourceFilePath: 'file.txt',
+        sourceFilePath: DEFAULT_FS_FIXTURE_FILE,
         sourceStorageType: StorageType.FS,
       };
 
@@ -265,13 +315,36 @@ describe('AppController (e2e)', () => {
         .send(data);
 
       expect(status).toBe(HttpStatus.CREATED);
+
+      const { body, status: listStatus } = await request(app.getHttpServer())
+        .get('/v1/files')
+        .query({ type: StorageType.S3, configKey: S3_DEFAULT_CONFIG_KEY });
+
+      expect(listStatus).toBe(HttpStatus.OK);
+      expect(body.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'default-root-upload.txt' }),
+        ]),
+      );
     });
 
-    it('should copy remote file to local', async () => {
+    it('should copy remote file to the default local root when config key is omitted', async () => {
+      const uploadData: CopyFileBodyDto = {
+        destinationConfigKey: S3_DEFAULT_CONFIG_KEY,
+        destinationFilePath: 'default-root-remote-source.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: DEFAULT_FS_FIXTURE_FILE,
+        sourceStorageType: StorageType.FS,
+      };
+
+      await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(uploadData);
+
       const data: CopyFileBodyDto = {
-        destinationFilePath: 'file.txt',
+        destinationFilePath: 'downloaded-to-default-root.txt',
         destinationStorageType: StorageType.FS,
-        sourceFilePath: 'file.txt',
+        sourceFilePath: 'default-root-remote-source.txt',
         sourceStorageType: StorageType.S3,
       };
 
@@ -280,14 +353,27 @@ describe('AppController (e2e)', () => {
         .send(data);
 
       expect(status).toBe(HttpStatus.CREATED);
+      expect(
+        fs.existsSync(
+          path.join(
+            defaultFsDataDirectoryPath,
+            'downloaded-to-default-root.txt',
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        fs.existsSync(
+          path.join(testFsDataDirectoryPath, 'downloaded-to-default-root.txt'),
+        ),
+      ).toBe(false);
     });
 
-    it('should copy local file to the explicit test S3 config', async () => {
+    it('should copy local file from the explicit test local root to the test S3 config', async () => {
       const data: CopyFileBodyDto = {
         destinationConfigKey: S3_TEST_CONFIG_KEY,
         destinationFilePath: 'test-config-file.txt',
         destinationStorageType: StorageType.S3,
-        sourceFilePath: 'file.txt',
+        sourceFilePath: TEST_FS_FIXTURE_FILE,
         sourceStorageType: StorageType.FS,
       };
 
@@ -309,12 +395,12 @@ describe('AppController (e2e)', () => {
       );
     });
 
-    it('should copy remote file from the explicit test S3 config to local', async () => {
+    it('should copy remote file from the explicit test S3 config to the test local root', async () => {
       const uploadData: CopyFileBodyDto = {
         destinationConfigKey: S3_TEST_CONFIG_KEY,
         destinationFilePath: 'test-remote-source.txt',
         destinationStorageType: StorageType.S3,
-        sourceFilePath: 'file.txt',
+        sourceFilePath: TEST_FS_FIXTURE_FILE,
         sourceStorageType: StorageType.FS,
       };
 
@@ -337,9 +423,14 @@ describe('AppController (e2e)', () => {
       expect(status).toBe(HttpStatus.CREATED);
       expect(
         fs.existsSync(
-          path.join(fsDataDirectoryPath, 'downloaded-from-test.txt'),
+          path.join(testFsDataDirectoryPath, 'downloaded-from-test.txt'),
         ),
       ).toBe(true);
+      expect(
+        fs.existsSync(
+          path.join(defaultFsDataDirectoryPath, 'downloaded-from-test.txt'),
+        ),
+      ).toBe(false);
     });
 
     it('should fail when invalid "destinationConfigKey" is provided for S3 copy', async () => {
@@ -357,7 +448,7 @@ describe('AppController (e2e)', () => {
         .send(data);
 
       expect(status).toBe(HttpStatus.BAD_REQUEST);
-      expect(body.message).toBe(`Invalid S3 config: "${configKey}"`);
+      expect(body.message).toBe(`Invalid config key: "${configKey}"`);
     });
 
     it('should fail when invalid "sourceConfigKey" is provided for S3 copy', async () => {
@@ -375,41 +466,41 @@ describe('AppController (e2e)', () => {
         .send(data);
 
       expect(status).toBe(HttpStatus.BAD_REQUEST);
-      expect(body.message).toBe(`Invalid S3 config: "${configKey}"`);
+      expect(body.message).toBe(`Invalid config key: "${configKey}"`);
     });
 
-    it('should fail when "destinationConfigKey" is provided for fs copy destination', async () => {
+    it('should fail when source and destination storage types are the same', async () => {
+      const data: CopyFileBodyDto = {
+        destinationFilePath: 'same-type-destination.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: 'same-type-source.txt',
+        sourceStorageType: StorageType.S3,
+      };
+
       const { body, status } = await request(app.getHttpServer())
         .post('/v1/files/copy')
-        .send({
-          destinationConfigKey: S3_TEST_CONFIG_KEY,
-          destinationFilePath: 'invalid-fs-destination-config.txt',
-          destinationStorageType: StorageType.FS,
-          sourceFilePath: 'file.txt',
-          sourceStorageType: StorageType.S3,
-        } satisfies CopyFileBodyDto);
+        .send(data);
 
       expect(status).toBe(HttpStatus.BAD_REQUEST);
       expect(body.message).toEqual([
-        '"destinationConfigKey" must be omitted when destinationStorageType is not S3',
+        'destinationStorageType and sourceStorageType cannot have the same value',
       ]);
     });
 
-    it('should fail when "sourceConfigKey" is provided for fs copy source', async () => {
+    it('should fail validation when copy paths contain illegal characters', async () => {
+      const data: CopyFileBodyDto = {
+        destinationFilePath: 'safe.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: '../unsafe.txt',
+        sourceStorageType: StorageType.FS,
+      };
+
       const { body, status } = await request(app.getHttpServer())
         .post('/v1/files/copy')
-        .send({
-          destinationFilePath: 'invalid-fs-source-config.txt',
-          destinationStorageType: StorageType.S3,
-          sourceConfigKey: S3_TEST_CONFIG_KEY,
-          sourceFilePath: 'file.txt',
-          sourceStorageType: StorageType.FS,
-        } satisfies CopyFileBodyDto);
+        .send(data);
 
       expect(status).toBe(HttpStatus.BAD_REQUEST);
-      expect(body.message).toEqual([
-        '"sourceConfigKey" must be omitted when sourceStorageType is not S3',
-      ]);
+      expect(body.message).toEqual(['Path contains illegal characters']);
     });
   });
 
@@ -629,6 +720,28 @@ describe('AppController (e2e)', () => {
       expect(body.message).toContain('Container not found');
       expect(body.message).toContain('nonexistent-container');
       expect(body.message).toContain('azure-testaccount1');
+    });
+
+    it('should fail validation when create file paths contain illegal characters', async () => {
+      const data: CreateFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: 'test-container',
+            fileName: '../unsafe.json',
+          },
+        ],
+        content: '[{"id":1}]',
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/create')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        'files.0.Path contains illegal characters',
+      ]);
     });
   });
 
@@ -888,6 +1001,27 @@ describe('AppController (e2e)', () => {
       expect(body.message).toContain('nonexistent-file.json');
       expect(body.message).toContain('test-container');
       expect(body.message).toContain('azure-testaccount1');
+    });
+
+    it('should fail validation when delete file paths contain illegal characters', async () => {
+      const data: DeleteFileBodyDto = {
+        files: [
+          {
+            storageAccountId: 'azure-testaccount1',
+            container: '../unsafe-container',
+            fileName: 'test-file.json',
+          },
+        ],
+      };
+
+      const { status, body } = await request(app.getHttpServer())
+        .delete('/v1/files/delete')
+        .send(data);
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        'files.0.Path contains illegal characters',
+      ]);
     });
   });
 });

@@ -23,4 +23,8 @@ export class S3ConfigSchema {
 
   @IsString()
   readonly dataBucketPath!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly fsDataDirectoryPath!: string;
 }

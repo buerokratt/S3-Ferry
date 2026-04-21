@@ -18,7 +18,7 @@ import {
 } from '../../common/dtos';
 import {
   FileNotFoundException,
-  InvalidS3ConfigException,
+  InvalidStorageConfigKeyException,
 } from '../../common/exceptions';
 import { s3ConfigFactory } from '../config';
 import { S3_DEFAULT_CONFIG_KEY } from '../s3.constants';
@@ -46,6 +46,12 @@ export class S3Service {
         requestChecksumCalculation: 'WHEN_REQUIRED',
       });
     }
+  }
+
+  public getFsDataDirectoryPath(configKey?: keyof typeof this.config): string {
+    this.assertS3ClientConfigExists(configKey);
+    configKey ??= S3_DEFAULT_CONFIG_KEY;
+    return this.config[configKey].fsDataDirectoryPath;
   }
 
   public async listFiles(
@@ -80,7 +86,6 @@ export class S3Service {
   public async copyFileFromRemoteToLocal(
     destinationFilePath: string,
     sourceFilePath: string,
-    fsDataDirectoryPath: string,
     sourceConfigKey?: keyof typeof this.s3Clients,
   ): Promise<void> {
     this.assertS3ClientConfigExists(sourceConfigKey);
@@ -97,7 +102,7 @@ export class S3Service {
       );
 
       const writeStream = fs.createWriteStream(
-        path.join(fsDataDirectoryPath, destinationFilePath),
+        path.join(config.fsDataDirectoryPath, destinationFilePath),
       );
 
       await new Promise<void>((resolve, reject) => {
@@ -116,11 +121,14 @@ export class S3Service {
   public async copyFileFromLocalToRemote(
     sourceFilePath: string,
     destinationFilePath: string,
-    fsDataDirectoryPath: string,
     destinationConfigKey?: keyof typeof this.s3Clients,
   ): Promise<void> {
     this.assertS3ClientConfigExists(destinationConfigKey);
     destinationConfigKey ??= S3_DEFAULT_CONFIG_KEY;
+
+    const s3 = this.s3Clients[destinationConfigKey];
+    const config = this.config[destinationConfigKey];
+    const { fsDataDirectoryPath } = config;
 
     const fileExists = fs.existsSync(
       path.join(fsDataDirectoryPath, sourceFilePath),
@@ -131,8 +139,6 @@ export class S3Service {
       path.join(fsDataDirectoryPath, sourceFilePath),
     );
 
-    const s3 = this.s3Clients[destinationConfigKey];
-    const config = this.config[destinationConfigKey];
     await s3.send(
       new PutObjectCommand({
         Bucket: config.dataBucketName,
@@ -148,7 +154,9 @@ export class S3Service {
   ): void {
     if (configKey === undefined) return;
     if (!(configKey in this.s3Clients)) {
-      throw new InvalidS3ConfigException(`Invalid S3 config: "${configKey}"`);
+      throw new InvalidStorageConfigKeyException(
+        `Invalid config key: "${configKey}"`,
+      );
     }
   }
 }

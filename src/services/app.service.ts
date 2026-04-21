@@ -20,7 +20,7 @@ import { StorageType } from '../common/enums';
 import {
   FileNotFoundException,
   InternalServerException,
-  InvalidS3ConfigException,
+  InvalidStorageConfigKeyException,
 } from '../common/exceptions';
 import { FsService } from '../fs';
 import { S3Service } from '../s3';
@@ -43,7 +43,9 @@ export class AppService {
     try {
       switch (storageType) {
         case StorageType.FS:
-          return this.fsService.listFiles();
+          return this.fsService.listFiles(
+            this.s3Service.getFsDataDirectoryPath(configKey),
+          );
 
         case StorageType.S3:
           return await this.s3Service.listFiles(configKey);
@@ -66,7 +68,6 @@ export class AppService {
           await this.s3Service.copyFileFromRemoteToLocal(
             data.destinationFilePath,
             data.sourceFilePath,
-            this.fsService.getDataDirectoryPath(),
             data.sourceConfigKey,
           );
           break;
@@ -75,7 +76,6 @@ export class AppService {
           await this.s3Service.copyFileFromLocalToRemote(
             data.sourceFilePath,
             data.destinationFilePath,
-            this.fsService.getDataDirectoryPath(),
             data.destinationConfigKey,
           );
           break;
@@ -84,7 +84,7 @@ export class AppService {
       this.logger.error(
         `Copying files failed: ${error instanceof Error ? error.stack : String(error)}`,
       );
-      if (error instanceof InvalidS3ConfigException) throw error;
+      if (error instanceof InvalidStorageConfigKeyException) throw error;
       throw error instanceof FileNotFoundException
         ? new FileNotFoundException(error.message)
         : new InternalServerException();
