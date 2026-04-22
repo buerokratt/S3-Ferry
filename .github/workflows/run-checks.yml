@@ -50,15 +50,6 @@ jobs:
           SERVICES: 's3:4566'
         ports:
           - 4566:4566
-      azurite:
-        image: mcr.microsoft.com/azure-storage/azurite:latest
-        options: --name azurite
-        env:
-          AZURITE_ACCOUNTS: 'testaccount1:dGVzdGtleTE9PQ==;testaccount2:dGVzdGtleTI9PQ==;testaccount3:dGVzdGtleTM9PQ=='
-        ports:
-          - 10000:10000
-          - 10001:10001
-          - 10002:10002
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -66,6 +57,20 @@ jobs:
           node-version-file: package.json
           cache: npm
           cache-dependency-path: package-lock.json
+      # Workaround: see docker-compose.yml for the reason.
+      - run: |
+          docker run -d \
+            --name azurite \
+            -e 'AZURITE_ACCOUNTS=testaccount1:dGVzdGtleTE9PQ==;testaccount2:dGVzdGtleTI9PQ==;testaccount3:dGVzdGtleTM9PQ==' \
+            -p 10000:10000 \
+            -p 10001:10001 \
+            -p 10002:10002 \
+            mcr.microsoft.com/azure-storage/azurite:latest \
+            azurite \
+            --blobHost 0.0.0.0 \
+            --queueHost 0.0.0.0 \
+            --tableHost 0.0.0.0 \
+            --skipApiVersionCheck
       - run: npm ci
       - run: npm run test:e2e
 
