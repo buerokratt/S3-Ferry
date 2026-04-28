@@ -4,10 +4,12 @@ import { Readable } from 'stream';
 
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   NoSuchKey,
   PutObjectCommand,
   S3,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 
@@ -96,22 +98,26 @@ export class S3Service {
     destinationFilePath: string,
     sourceFilePath: string,
     sourceConfigKey?: keyof typeof this.s3Clients,
+    destinationConfigKey?: keyof typeof this.s3Clients,
   ): Promise<void> {
     this.assertS3ClientConfigExists(sourceConfigKey);
+    this.assertS3ClientConfigExists(destinationConfigKey);
 
     try {
       sourceConfigKey ??= S3_DEFAULT_CONFIG_KEY;
+      destinationConfigKey ??= S3_DEFAULT_CONFIG_KEY;
       const s3 = this.s3Clients[sourceConfigKey];
-      const config = this.config[sourceConfigKey];
+      const sourceConfig = this.config[sourceConfigKey];
+      const destinationConfig = this.config[destinationConfigKey];
       const response = await s3.send(
         new GetObjectCommand({
-          Bucket: config.dataBucketName,
-          Key: path.join(config.dataBucketPath, sourceFilePath),
+          Bucket: sourceConfig.dataBucketName,
+          Key: path.join(sourceConfig.dataBucketPath, sourceFilePath),
         }),
       );
 
       const writeStream = fs.createWriteStream(
-        path.join(config.fsDataDirectoryPath, destinationFilePath),
+        path.join(destinationConfig.fsDataDirectoryPath, destinationFilePath),
       );
 
       await new Promise<void>((resolve, reject) => {
@@ -130,31 +136,78 @@ export class S3Service {
   public async copyFileFromLocalToRemote(
     sourceFilePath: string,
     destinationFilePath: string,
+    sourceConfigKey?: keyof typeof this.s3Clients,
     destinationConfigKey?: keyof typeof this.s3Clients,
   ): Promise<void> {
+    this.assertS3ClientConfigExists(sourceConfigKey);
     this.assertS3ClientConfigExists(destinationConfigKey);
     destinationConfigKey ??= S3_DEFAULT_CONFIG_KEY;
+    sourceConfigKey ??= S3_DEFAULT_CONFIG_KEY;
 
     const s3 = this.s3Clients[destinationConfigKey];
-    const config = this.config[destinationConfigKey];
-    const { fsDataDirectoryPath } = config;
-
-    const fileExists = fs.existsSync(
-      path.join(fsDataDirectoryPath, sourceFilePath),
+    const destinationConfig = this.config[destinationConfigKey];
+    const sourceFileAbsolutePath = path.join(
+      this.config[sourceConfigKey].fsDataDirectoryPath,
+      sourceFilePath,
     );
+
+    const fileExists = fs.existsSync(sourceFileAbsolutePath);
     if (!fileExists) throw new FileNotFoundException('File not found in FS');
 
-    const fileBuffer = fs.readFileSync(
-      path.join(fsDataDirectoryPath, sourceFilePath),
-    );
+    const fileBuffer = fs.readFileSync(sourceFileAbsolutePath);
 
     await s3.send(
       new PutObjectCommand({
-        Bucket: config.dataBucketName,
+        Bucket: destinationConfig.dataBucketName,
         Body: fileBuffer,
-        Key: path.join(config.dataBucketPath, destinationFilePath),
+        Key: path.join(destinationConfig.dataBucketPath, destinationFilePath),
       }),
     );
+  }
+
+  public async fileExists(
+    filePath: string,
+    configKey?: keyof typeof this.s3Clients,
+  ): Promise<boolean> {
+    this.assertS3ClientConfigExists(configKey);
+    configKey ??= S3_DEFAULT_CONFIG_KEY;
+    const s3 = this.s3Clients[configKey];
+    const config = this.config[configKey];
+    try {
+      return !!(await s3.send(
+        new HeadObjectCommand({
+          Bucket: config.dataBucketName,
+          Key: path.join(config.dataBucketPath, filePath),
+        }),
+      ));
+    } catch (error) {
+      if (error instanceof Error && error.name === 'NotFound') return false;
+      throw error;
+    }
+  }
+
+  public async createSignedDownloadUrl(
+    filePath: string,
+    expiresInSec = 3600,
+    configKey?: keyof typeof this.s3Clients,
+  ): Promise<string> {
+    this.assertS3ClientConfigExists(configKey);
+    configKey ??= S3_DEFAULT_CONFIG_KEY;
+    const s3 = this.s3Clients[configKey];
+    const config = this.config[configKey];
+    try {
+      return await getSignedUrl(
+        s3,
+        new GetObjectCommand({ Bucket: config.dataBucketName, Key: filePath }),
+        {
+          expiresIn: expiresInSec,
+        },
+      );
+    } catch (error) {
+      throw error instanceof NoSuchKey
+        ? new FileNotFoundException('File not found in S3')
+        : error;
+    }
   }
 
   // Prevent invalid explicit config keys from silently falling back to the default client.

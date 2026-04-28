@@ -12,7 +12,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "vitest",
@@ -31,6 +31,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1031.0",
     "@aws-sdk/credential-provider-ini": "^3.972.30",
+    "@aws-sdk/s3-request-presigner": "^3.1038.0",
     "@azure/storage-blob": "^12.31.0",
     "@nestjs/common": "^11.1.9",
     "@nestjs/config": "^4.0.4",

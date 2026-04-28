@@ -485,12 +485,13 @@ describe('AppController (e2e)', () => {
       ).toBe(false);
     });
 
-    it('should copy local file from the explicit test local root to the test S3 config', async () => {
+    it('should copy local file from the explicit default local root to the test S3 config', async () => {
       const data: CopyFileBodyDto = {
         destinationConfigKey: S3_TEST_CONFIG_KEY,
         destinationFilePath: 'test-config-file.txt',
         destinationStorageType: StorageType.S3,
-        sourceFilePath: TEST_FS_FIXTURE_FILE,
+        sourceConfigKey: S3_DEFAULT_CONFIG_KEY,
+        sourceFilePath: DEFAULT_FS_FIXTURE_FILE,
         sourceStorageType: StorageType.FS,
       };
 
@@ -512,12 +513,13 @@ describe('AppController (e2e)', () => {
       );
     });
 
-    it('should copy remote file from the explicit test S3 config to the test local root', async () => {
+    it('should copy remote file from the explicit test S3 config to the explicit default local root', async () => {
       const uploadData: CopyFileBodyDto = {
         destinationConfigKey: S3_TEST_CONFIG_KEY,
         destinationFilePath: 'test-remote-source.txt',
         destinationStorageType: StorageType.S3,
-        sourceFilePath: TEST_FS_FIXTURE_FILE,
+        sourceConfigKey: S3_DEFAULT_CONFIG_KEY,
+        sourceFilePath: DEFAULT_FS_FIXTURE_FILE,
         sourceStorageType: StorageType.FS,
       };
 
@@ -526,6 +528,7 @@ describe('AppController (e2e)', () => {
         .send(uploadData);
 
       const downloadData: CopyFileBodyDto = {
+        destinationConfigKey: S3_DEFAULT_CONFIG_KEY,
         destinationFilePath: 'downloaded-from-test.txt',
         destinationStorageType: StorageType.FS,
         sourceConfigKey: S3_TEST_CONFIG_KEY,
@@ -540,12 +543,12 @@ describe('AppController (e2e)', () => {
       expect(status).toBe(HttpStatus.CREATED);
       expect(
         fs.existsSync(
-          path.join(testFsDataDirectoryPath, 'downloaded-from-test.txt'),
+          path.join(defaultFsDataDirectoryPath, 'downloaded-from-test.txt'),
         ),
       ).toBe(true);
       expect(
         fs.existsSync(
-          path.join(defaultFsDataDirectoryPath, 'downloaded-from-test.txt'),
+          path.join(testFsDataDirectoryPath, 'downloaded-from-test.txt'),
         ),
       ).toBe(false);
     });
@@ -1138,6 +1141,307 @@ describe('AppController (e2e)', () => {
       expect(status).toBe(HttpStatus.BAD_REQUEST);
       expect(body.message).toEqual([
         'files.0.Path contains illegal characters',
+      ]);
+    });
+  });
+
+  describe('POST /v1/files/signed-url/download', () => {
+    beforeAll(async () => {
+      const s3Config = app.get<ConfigType<typeof s3ConfigFactory>>(
+        s3ConfigFactory.KEY,
+      );
+
+      for (const config of Object.values(s3Config)) {
+        const s3Client = new S3Client({
+          credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+          },
+          ...(config.endpointUrl && { endpoint: config.endpointUrl }),
+          forcePathStyle: true,
+          region: config.region,
+        });
+
+        await ensureS3BucketExists(s3Client, config.dataBucketName);
+      }
+    });
+
+    it('should create a signed URL using the default S3 config when config key is omitted', async () => {
+      const uploadData: CopyFileBodyDto = {
+        destinationFilePath: 'signed-url-default-source.txt',
+        destinationStorageType: StorageType.S3,
+        sourceFilePath: DEFAULT_FS_FIXTURE_FILE,
+        sourceStorageType: StorageType.FS,
+      };
+
+      await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(uploadData);
+
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-default-source.txt',
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body).toEqual({ data: { url: expect.any(String) } });
+      expect(body.data.url).toContain('signed-url-default-source.txt');
+    });
+
+    it('should create a signed URL using an explicit keyed S3 config', async () => {
+      const uploadData: CopyFileBodyDto = {
+        destinationConfigKey: S3_TEST_CONFIG_KEY,
+        destinationFilePath: 'signed-url-keyed-source.txt',
+        destinationStorageType: StorageType.S3,
+        sourceConfigKey: S3_DEFAULT_CONFIG_KEY,
+        sourceFilePath: DEFAULT_FS_FIXTURE_FILE,
+        sourceStorageType: StorageType.FS,
+      };
+
+      await request(app.getHttpServer())
+        .post('/v1/files/copy')
+        .send(uploadData);
+
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-keyed-source.txt',
+          configKey: S3_TEST_CONFIG_KEY,
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body).toEqual({ data: { url: expect.any(String) } });
+      expect(body.data.url).toContain('signed-url-keyed-source.txt');
+    });
+
+    it('should use the default expiry when expiresInSec is omitted', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-default-source.txt',
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body.data.url).toContain('X-Amz-Expires=3600');
+    });
+
+    it('should honor a custom expiry when expiresInSec is provided', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-default-source.txt',
+          expiresInSec: 60,
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body.data.url).toContain('X-Amz-Expires=60');
+    });
+
+    it('should trim configKey before using the keyed S3 config', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-keyed-source.txt',
+          configKey: `  ${S3_TEST_CONFIG_KEY}  `,
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body).toEqual({ data: { url: expect.any(String) } });
+      expect(body.data.url).toContain('signed-url-keyed-source.txt');
+    });
+
+    it('should fail when type is missing', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          filePath: 'signed-url-default-source.txt',
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual(
+        expect.arrayContaining([
+          'type must be one of the following values: FS, S3, AZURE',
+        ]),
+      );
+    });
+
+    it('should fail when type is invalid', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: 'GCS',
+          filePath: 'signed-url-default-source.txt',
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual(
+        expect.arrayContaining([
+          'type must be one of the following values: FS, S3, AZURE',
+        ]),
+      );
+    });
+
+    it('should fail when filePath contains illegal path traversal characters', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: '../secret.txt',
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual(['Path contains illegal characters']);
+    });
+
+    it.each([
+      {
+        name: 'zero expiry',
+        expiresInSec: 0,
+        expectedMessage: ['expiresInSec must not be less than 1'],
+      },
+      {
+        name: 'negative expiry',
+        expiresInSec: -1,
+        expectedMessage: ['expiresInSec must not be less than 1'],
+      },
+      {
+        name: 'fractional expiry',
+        expiresInSec: 1.5,
+        expectedMessage: ['expiresInSec must be an integer number'],
+      },
+    ])(
+      'should fail when expiresInSec is invalid: $name',
+      async ({ expiresInSec, expectedMessage }) => {
+        const { body, status } = await request(app.getHttpServer())
+          .post('/v1/files/signed-url/download')
+          .send({
+            type: StorageType.S3,
+            filePath: 'signed-url-default-source.txt',
+            expiresInSec,
+          });
+
+        expect(status).toBe(HttpStatus.BAD_REQUEST);
+        expect(body.message).toEqual(expectedMessage);
+      },
+    );
+
+    it('should fail when expiresInSec is a string', async () => {
+      const { body, status } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-default-source.txt',
+          expiresInSec: '60',
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        'expiresInSec must not be less than 1',
+        'expiresInSec must be an integer number',
+      ]);
+    });
+
+    it('should fail validation when configKey is empty for S3', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-default-source.txt',
+          configKey: '',
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"configKey" must be a non-empty string when type is FS or S3',
+      ]);
+    });
+
+    it('should fail validation when configKey is whitespace-only for S3', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-default-source.txt',
+          configKey: '   ',
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"configKey" must be a non-empty string when type is FS or S3',
+      ]);
+    });
+
+    it('should fail when an invalid S3 config key is provided', async () => {
+      const configKey = 'invalid-config-key';
+
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-default-source.txt',
+          configKey,
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toBe(`Invalid config key: "${configKey}"`);
+    });
+
+    it('should fail when the S3 object does not exist', async () => {
+      const missingFilePath = 'missing-signed-url-source.txt';
+
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.S3,
+          filePath: missingFilePath,
+        });
+
+      expect(status).toBe(HttpStatus.NOT_FOUND);
+      expect(body.message).toBe('File not found in S3');
+    });
+
+    it('should fail with an internal server error for FS storage type', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.FS,
+          filePath: 'signed-url-default-source.txt',
+        });
+
+      expect(status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(body.message).toBe('Internal server error');
+    });
+
+    it('should fail with an internal server error for AZURE storage type when configKey is omitted', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.AZURE,
+          filePath: 'signed-url-default-source.txt',
+        });
+
+      expect(status).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(body.message).toBe('Internal server error');
+    });
+
+    it('should fail validation when configKey is provided for AZURE storage', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/download')
+        .send({
+          type: StorageType.AZURE,
+          filePath: 'signed-url-default-source.txt',
+          configKey: S3_DEFAULT_CONFIG_KEY,
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"configKey" must be omitted when type is not FS or S3',
       ]);
     });
   });

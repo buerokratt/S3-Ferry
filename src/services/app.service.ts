@@ -9,6 +9,7 @@ import { AzureAccountService, AzureBlobService } from '../azure/services';
 import {
   CopyFileBodyDto,
   CreateFileBodyDto,
+  CreateSignedDownloadUrlBodyDto,
   DataWithMetaResponseDto,
   DeleteFileBodyDto,
   FileDto,
@@ -69,6 +70,7 @@ export class AppService {
             data.destinationFilePath,
             data.sourceFilePath,
             data.sourceConfigKey,
+            data.destinationConfigKey,
           );
           break;
 
@@ -76,6 +78,7 @@ export class AppService {
           await this.s3Service.copyFileFromLocalToRemote(
             data.sourceFilePath,
             data.destinationFilePath,
+            data.sourceConfigKey,
             data.destinationConfigKey,
           );
           break;
@@ -182,6 +185,34 @@ export class AppService {
       throw new InternalServerException(
         `Failed to delete file: ${error instanceof Error ? error.message : String(error)}`,
       );
+    }
+  }
+
+  public async createSignedDownloadUrl(
+    data: CreateSignedDownloadUrlBodyDto,
+  ): Promise<{ readonly url: string }> {
+    switch (data.type) {
+      case StorageType.S3: {
+        const fileExists = await this.s3Service.fileExists(
+          data.filePath,
+          data.configKey,
+        );
+
+        if (!fileExists) {
+          throw new FileNotFoundException('File not found in S3');
+        }
+
+        return {
+          url: await this.s3Service.createSignedDownloadUrl(
+            data.filePath,
+            data.expiresInSec,
+            data.configKey,
+          ),
+        };
+      }
+
+      default:
+        throw new Error(`Storage type not supported: ${data.type}`);
     }
   }
 }
