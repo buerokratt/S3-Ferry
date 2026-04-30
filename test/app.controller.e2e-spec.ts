@@ -5,6 +5,7 @@ import {
   CreateBucketCommand,
   DeleteObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -1436,6 +1437,190 @@ describe('AppController (e2e)', () => {
         .send({
           type: StorageType.AZURE,
           filePath: 'signed-url-default-source.txt',
+          configKey: S3_DEFAULT_CONFIG_KEY,
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual([
+        '"configKey" must be omitted when type is not FS or S3',
+      ]);
+    });
+  });
+
+  describe('POST /v1/files/signed-url/upload', () => {
+    beforeAll(async () => {
+      const s3Config = app.get<ConfigType<typeof s3ConfigFactory>>(
+        s3ConfigFactory.KEY,
+      );
+
+      for (const config of Object.values(s3Config)) {
+        const s3Client = new S3Client({
+          credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+          },
+          ...(config.endpointUrl && { endpoint: config.endpointUrl }),
+          forcePathStyle: true,
+          region: config.region,
+        });
+
+        await ensureS3BucketExists(s3Client, config.dataBucketName);
+      }
+    });
+
+    it('should create a signed upload URL using the default S3 config when config key is omitted', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/upload')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-upload-default-target.txt',
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body).toEqual({ data: { url: expect.any(String) } });
+      expect(body.data.url).toContain('signed-url-upload-default-target.txt');
+      expect(body.data.url).toContain('X-Amz-Expires=3600');
+    });
+
+    it('should create a signed upload URL using an explicit keyed S3 config', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/upload')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-upload-keyed-target.txt',
+          configKey: S3_TEST_CONFIG_KEY,
+          expiresInSec: 60,
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body).toEqual({ data: { url: expect.any(String) } });
+      expect(body.data.url).toContain('signed-url-upload-keyed-target.txt');
+      expect(body.data.url).toContain('X-Amz-Expires=60');
+    });
+
+    it('should include upload metadata in the signed URL when provided', async () => {
+      const filePath = 'signed-url-upload-metadata-target.txt';
+      const contentDisposition =
+        "attachment; filename*=UTF-8''report%20final.txt";
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/upload')
+        .send({
+          type: StorageType.S3,
+          filePath,
+          fileName: 'report final.txt',
+          mimeType: 'text/plain',
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body).toEqual({ data: { url: expect.any(String) } });
+      expect(body.data.url).toContain(filePath);
+      expect(decodeURIComponent(body.data.url)).toContain(
+        'X-Amz-SignedHeaders=content-disposition;host',
+      );
+
+      const uploadResponse = await fetch(body.data.url, {
+        method: 'PUT',
+        body: 'uploaded through signed url',
+        headers: {
+          'Content-Disposition': contentDisposition,
+          'Content-Type': 'text/plain',
+        },
+      });
+
+      expect(uploadResponse.status).toBe(HttpStatus.OK);
+
+      const s3Config = app.get<ConfigType<typeof s3ConfigFactory>>(
+        s3ConfigFactory.KEY,
+      );
+      const defaultS3Config = s3Config[S3_DEFAULT_CONFIG_KEY];
+      const s3Client = new S3Client({
+        credentials: {
+          accessKeyId: defaultS3Config.accessKeyId,
+          secretAccessKey: defaultS3Config.secretAccessKey,
+        },
+        ...(defaultS3Config.endpointUrl && {
+          endpoint: defaultS3Config.endpointUrl,
+        }),
+        forcePathStyle: true,
+        region: defaultS3Config.region,
+      });
+      const uploadedObject = await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: defaultS3Config.dataBucketName,
+          Key: filePath,
+        }),
+      );
+
+      expect(uploadedObject.ContentDisposition).toBe(contentDisposition);
+      expect(uploadedObject.ContentType).toBe('text/plain');
+    });
+
+    it('should trim configKey before using the keyed S3 config', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/upload')
+        .send({
+          type: StorageType.S3,
+          filePath: 'signed-url-upload-trimmed-key-target.txt',
+          configKey: `  ${S3_TEST_CONFIG_KEY}  `,
+        });
+
+      expect(status).toBe(HttpStatus.CREATED);
+      expect(body).toEqual({ data: { url: expect.any(String) } });
+      expect(body.data.url).toContain(
+        'signed-url-upload-trimmed-key-target.txt',
+      );
+    });
+
+    it('should fail when filePath contains illegal path traversal characters', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/upload')
+        .send({
+          type: StorageType.S3,
+          filePath: '../secret.txt',
+        });
+
+      expect(status).toBe(HttpStatus.BAD_REQUEST);
+      expect(body.message).toEqual(['Path contains illegal characters']);
+    });
+
+    it.each([
+      {
+        name: 'zero expiry',
+        expiresInSec: 0,
+        expectedMessage: ['expiresInSec must not be less than 1'],
+      },
+      {
+        name: 'negative expiry',
+        expiresInSec: -1,
+        expectedMessage: ['expiresInSec must not be less than 1'],
+      },
+      {
+        name: 'fractional expiry',
+        expiresInSec: 1.5,
+        expectedMessage: ['expiresInSec must be an integer number'],
+      },
+    ])(
+      'should fail when expiresInSec is invalid: $name',
+      async ({ expiresInSec, expectedMessage }) => {
+        const { body, status } = await request(app.getHttpServer())
+          .post('/v1/files/signed-url/upload')
+          .send({
+            type: StorageType.S3,
+            filePath: 'signed-url-upload-target.txt',
+            expiresInSec,
+          });
+
+        expect(status).toBe(HttpStatus.BAD_REQUEST);
+        expect(body.message).toEqual(expectedMessage);
+      },
+    );
+
+    it('should fail validation when configKey is provided for AZURE storage', async () => {
+      const { status, body } = await request(app.getHttpServer())
+        .post('/v1/files/signed-url/upload')
+        .send({
+          type: StorageType.AZURE,
+          filePath: 'signed-url-upload-target.txt',
           configKey: S3_DEFAULT_CONFIG_KEY,
         });
 

@@ -10,6 +10,7 @@ import {
   CopyFileBodyDto,
   CreateFileBodyDto,
   CreateSignedDownloadUrlBodyDto,
+  CreateSignedUploadUrlBodyDto,
   DataWithMetaResponseDto,
   DeleteFileBodyDto,
   FileDto,
@@ -210,6 +211,26 @@ export class AppService {
           ),
         };
       }
+
+      default:
+        throw new Error(`Storage type not supported: ${data.type}`);
+    }
+  }
+
+  public async createSignedUploadUrl(
+    data: CreateSignedUploadUrlBodyDto,
+  ): Promise<{ readonly url: string }> {
+    switch (data.type) {
+      case StorageType.S3:
+        return {
+          url: await this.s3Service.createSignedUploadUrl(
+            data.filePath,
+            data.expiresInSec,
+            data.configKey,
+            data.fileName,
+            data.mimeType,
+          ),
+        };
 
       default:
         throw new Error(`Storage type not supported: ${data.type}`);

@@ -16,6 +16,7 @@ import {
   CopyFileBodyDto,
   CreateFileBodyDto,
   CreateSignedDownloadUrlBodyDto,
+  CreateSignedUploadUrlBodyDto,
   DataResponseDto,
   DataWithMetaResponseDto,
   DeleteFileBodyDto,
@@ -94,6 +95,20 @@ export class AppController {
       data: plainToInstance(
         SignedUrlResponseDto,
         await this.appService.createSignedDownloadUrl(data),
+      ),
+    };
+  }
+
+  @Version('1')
+  @Post('/files/signed-url/upload')
+  @ApiOperation({ summary: 'Create a signed upload URL for a remote file' })
+  async createSignedUploadUrl(
+    @Body() data: CreateSignedUploadUrlBodyDto,
+  ): Promise<DataResponseDto<SignedUrlResponseDto>> {
+    return {
+      data: plainToInstance(
+        SignedUrlResponseDto,
+        await this.appService.createSignedUploadUrl(data),
       ),
     };
   }

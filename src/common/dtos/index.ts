@@ -1,6 +1,7 @@
 export * from './copy-file-body.dto';
 export * from './create-file-body.dto';
 export * from './create-signed-download-url-body.dto';
+export * from './create-signed-upload-url-body.dto';
 export * from './data-response.dto';
 export * from './data-with-meta-response.dto';
 export * from './delete-file-body.dto';

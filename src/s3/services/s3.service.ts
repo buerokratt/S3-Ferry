@@ -10,7 +10,11 @@ import {
   S3,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 
 import {
@@ -207,6 +211,37 @@ export class S3Service {
       throw error instanceof NoSuchKey
         ? new FileNotFoundException('File not found in S3')
         : error;
+    }
+  }
+
+  public async createSignedUploadUrl(
+    path: string,
+    expiresInSec = 3600,
+    configKey?: keyof typeof this.s3Clients,
+    fileName?: string,
+    mimeType?: string,
+  ): Promise<string> {
+    this.assertS3ClientConfigExists(configKey);
+    configKey ??= S3_DEFAULT_CONFIG_KEY;
+    const s3 = this.s3Clients[configKey];
+    const config = this.config[configKey];
+    try {
+      return await getSignedUrl(
+        s3,
+        new PutObjectCommand({
+          Bucket: config.dataBucketName,
+          ContentDisposition: fileName
+            ? `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`
+            : undefined,
+          ContentType: mimeType ?? undefined,
+          Key: path,
+        }),
+        {
+          expiresIn: expiresInSec,
+        },
+      );
+    } catch (error: any) {
+      throw new InternalServerErrorException(error.message);
     }
   }
 
