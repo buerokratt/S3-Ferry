@@ -1,8 +1,13 @@
-import * as joi from 'joi';
+import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
 
-const schema = {
-  API_CORS_ORIGIN: joi.string().required().allow(''),
-  API_DOCUMENTATION_ENABLED: joi.boolean().required(),
-};
+import { TransformStringToBoolean } from '../transformers';
 
-export const appConfigSchema = joi.object<typeof schema>(schema);
+export class AppConfigSchema {
+  @IsString({ each: true })
+  readonly corsOrigin!: string | string[];
+
+  @IsBoolean()
+  @IsNotEmpty()
+  @TransformStringToBoolean()
+  readonly documentationEnabled!: boolean;
+}

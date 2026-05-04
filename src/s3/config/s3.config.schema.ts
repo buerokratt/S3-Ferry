@@ -1,12 +1,30 @@
-import * as joi from 'joi';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-const schema = {
-  S3_REGION: joi.string(),
-  S3_ENDPOINT_URL: joi.string().uri().allow(''),
-  S3_ACCESS_KEY_ID: joi.string(),
-  S3_SECRET_ACCESS_KEY: joi.string(),
-  S3_DATA_BUCKET_NAME: joi.string(),
-  S3_DATA_BUCKET_PATH: joi.string().allow(''),
-};
+export class S3ConfigSchema {
+  @IsString()
+  @IsNotEmpty()
+  readonly region!: string;
 
-export const s3ConfigSchema = joi.object<typeof schema>(schema);
+  @IsOptional()
+  @IsString()
+  readonly endpointUrl?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly accessKeyId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly secretAccessKey!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly dataBucketName!: string;
+
+  @IsString()
+  readonly dataBucketPath!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly fsDataDirectoryPath!: string;
+}

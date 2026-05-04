@@ -103,6 +103,23 @@ Lists all available storage accounts configured in the system. You can use these
 
 All errors are also logged in server logs.
 
+### GET `/v1/files`
+
+Lists files from either local filesystem storage or a keyed S3 configuration.
+
+**Query parameters:**
+
+- `type`: Required. Use `FS` to list local files or `S3` to list remote files
+- `configKey`: Optional for `type=FS` and `type=S3`; when omitted, the default config is used. It is omitted for `type=AZURE`.
+
+**Behavior notes:**
+
+- `type=FS` lists files from the selected keyed local filesystem root, or the default local filesystem root when `configKey` is omitted
+- `type=S3` lists files from the selected S3 config, or the `default` config when `configKey` is omitted
+
+> [!NOTE]
+> **Future**: S3 pagination is currently handled behind the scenes using continuation tokens. This is not exposed in the API request yet.
+
 ### POST `/v1/files/create`
 
 Creates a file in storage at one or more specified locations. The same content is used for all file locations.
@@ -153,6 +170,17 @@ Creates a file in storage at one or more specified locations. The same content i
 | `500`       | Unexpected internal server error occurred while creating the file                                                   |
 
 All errors are also logged in server logs.
+
+### POST `/v1/files/copy`
+
+Copies a file between local filesystem storage and S3.
+
+**Behavior notes:**
+
+- When `sourceConfigKey` or `destinationConfigKey` is omitted, the keyed FS or S3 flow uses the `default` config
+- For FS-to-S3 copies, `destinationConfigKey` selects both the S3 config and the paired local filesystem source root
+- For S3-to-FS copies, `sourceConfigKey` selects both the S3 config and the paired local filesystem destination root
+- AZURE does not use config keys in these DTOs
 
 ### DELETE `/v1/files/delete`
 
@@ -217,7 +245,6 @@ Environment variables and their meaning is defined below.
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `API_CORS_ORIGIN`           | Specify CORS allowed domains. <br/>- Asterisk (`*`) to allow all<br/>- Empty value to allow nothing<br/>- Otherwise provide a comma separated list of allowed domains |
 | `API_DOCUMENTATION_ENABLED` | Enable API documentation, value can be either `true` or `false`                                                                                                       |
-| `FS_DATA_DIRECTORY_PATH`    | Local filesystem data directory path                                                                                                                                  |
 
 ### Azure
 
@@ -227,11 +254,16 @@ Environment variables and their meaning is defined below.
 
 ### S3
 
-| Variable               | Description                                                                                                                                                                                  |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `S3_REGION`            | Endpoint region for the S3 storage                                                                                                                                                           |
-| `S3_ENDPOINT_URL`      | Endpoint URL for the S3 storage. Can be used with S3-compatible services (e.g., MinIO, DigitalOcean Spaces) by providing a custom endpoint URL. Leave empty to use default AWS S3 endpoints. |
-| `S3_ACCESS_KEY_ID`     | Access key for the S3 storage                                                                                                                                                                |
-| `S3_SECRET_ACCESS_KEY` | Secret access key for the S3 storage                                                                                                                                                         |
-| `S3_DATA_BUCKET_NAME`  | Data bucket name for the S3 storage                                                                                                                                                          |
-| `S3_DATA_BUCKET_PATH`  | Data bucket path for the S3 storage                                                                                                                                                          |
+| Variable                     | Description                                                                                                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `S3_<KEY>_REGION`            | Endpoint region for the keyed S3 storage configuration                                                                                                                 |
+| `S3_<KEY>_ENDPOINT_URL`      | Endpoint URL for the keyed S3 storage configuration. Can be used with S3-compatible services (e.g., MinIO, DigitalOcean Spaces) by providing a custom endpoint URL. Leave empty to use default AWS S3 endpoints. |
+| `S3_<KEY>_ACCESS_KEY_ID`     | Access key for the keyed S3 storage configuration                                                                                                                      |
+| `S3_<KEY>_SECRET_ACCESS_KEY` | Secret access key for the keyed S3 storage configuration                                                                                                               |
+| `S3_<KEY>_DATA_BUCKET_NAME`  | Data bucket name for the keyed S3 storage configuration                                                                                                                |
+| `S3_<KEY>_DATA_BUCKET_PATH`  | Data bucket path for the keyed S3 storage configuration                                                                                                                |
+| `S3_<KEY>_FS_DATA_DIRECTORY_PATH` | Local filesystem data directory path paired with the keyed S3 storage configuration                                                                               |
+
+Each keyed S3 config also owns its local filesystem root via `S3_<KEY>_FS_DATA_DIRECTORY_PATH`. For example, `S3_DEFAULT_REGION` and `S3_DEFAULT_FS_DATA_DIRECTORY_PATH` configure the `default` S3 entry, and `S3_TEST_REGION` and `S3_TEST_FS_DATA_DIRECTORY_PATH` configure the `test` entry.
+
+- **Highlight:** the `default` config works like the previous single-S3 setup. If you only need one S3 configuration, use the `S3_DEFAULT_*` variables.

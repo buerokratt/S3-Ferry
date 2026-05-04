@@ -9,16 +9,21 @@ import {
   Version,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
 
 import { ApiOkDataWithMetaResponse } from './common/decorators';
 import {
   CopyFileBodyDto,
   CreateFileBodyDto,
+  CreateSignedDownloadUrlBodyDto,
+  CreateSignedUploadUrlBodyDto,
+  DataResponseDto,
   DataWithMetaResponseDto,
   DeleteFileBodyDto,
   FileDto,
   ListFilesQueryDto,
   LocalFilesListMetaDto,
+  SignedUrlResponseDto,
   StorageAccountDto,
 } from './common/dtos';
 import { RequestLogger } from './common/interceptors';
@@ -56,7 +61,7 @@ export class AppController {
   async listFiles(
     @Query() query: ListFilesQueryDto,
   ): Promise<DataWithMetaResponseDto<FileDto[], LocalFilesListMetaDto>> {
-    return await this.appService.listFiles(query.type);
+    return await this.appService.listFiles(query);
   }
 
   @Version('1')
@@ -78,5 +83,33 @@ export class AppController {
   @ApiOperation({ summary: 'Delete a file from storage' })
   async deleteFile(@Body() data: DeleteFileBodyDto): Promise<void> {
     return this.appService.deleteFile(data);
+  }
+
+  @Version('1')
+  @Post('/files/signed-url/download')
+  @ApiOperation({ summary: 'Create a signed download URL for a remote file' })
+  async createSignedDownloadUrl(
+    @Body() data: CreateSignedDownloadUrlBodyDto,
+  ): Promise<DataResponseDto<SignedUrlResponseDto>> {
+    return {
+      data: plainToInstance(
+        SignedUrlResponseDto,
+        await this.appService.createSignedDownloadUrl(data),
+      ),
+    };
+  }
+
+  @Version('1')
+  @Post('/files/signed-url/upload')
+  @ApiOperation({ summary: 'Create a signed upload URL for a remote file' })
+  async createSignedUploadUrl(
+    @Body() data: CreateSignedUploadUrlBodyDto,
+  ): Promise<DataResponseDto<SignedUrlResponseDto>> {
+    return {
+      data: plainToInstance(
+        SignedUrlResponseDto,
+        await this.appService.createSignedUploadUrl(data),
+      ),
+    };
   }
 }

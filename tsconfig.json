@@ -17,7 +17,9 @@
     "forceConsistentCasingInFileNames": true,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    // To ignore `baseUrl`
+    "ignoreDeprecations": "6.0",
   },
   "include": ["src/**/*", "test/**/*", "vitest.config.mts"]
 }
