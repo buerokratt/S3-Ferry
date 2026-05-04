@@ -10,7 +10,7 @@ services:
     volumes:
       - ./data:/api/data
     environment:
-      - S3_ENDPOINT_URL=http://localstack:4566
+      - S3_DEFAULT_ENDPOINT_URL=http://localstack:4566
   localstack:
     image: localstack/localstack:3.3.0
     ports:
@@ -25,6 +25,22 @@ services:
       - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
   azurite:
     image: mcr.microsoft.com/azure-storage/azurite:latest
+    # https://github.com/Azure/Azurite/issues/2623
+    # Command below is needed - otherwise:
+    # RestError: The API version 2026-02-06 is not supported by Azurite.
+    # Please upgrade Azurite to latest version and retry.
+    # If you are using Azurite in Visual Studio, please check you have installed latest Visual Studio patch.
+    # Azurite command line parameter "--skipApiVersionCheck" or Visual Studio Code configuration "Skip Api Version Check" 
+    # can skip this error. 
+    command:
+      - azurite
+      - --blobHost
+      - 0.0.0.0
+      - --queueHost
+      - 0.0.0.0
+      - --tableHost
+      - 0.0.0.0
+      - --skipApiVersionCheck
     ports:
       - 10000:10000
       - 10001:10001
