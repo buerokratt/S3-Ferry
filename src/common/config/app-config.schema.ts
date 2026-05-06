@@ -1,4 +1,11 @@
-import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 import { TransformStringToBoolean } from '../transformers';
 
@@ -10,4 +17,9 @@ export class AppConfigSchema {
   @IsNotEmpty()
   @TransformStringToBoolean()
   readonly documentationEnabled!: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
+  readonly port?: number;
 }
