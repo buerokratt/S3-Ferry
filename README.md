@@ -245,6 +245,7 @@ Environment variables and their meaning is defined below.
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `API_CORS_ORIGIN`           | Specify CORS allowed domains. <br/>- Asterisk (`*`) to allow all<br/>- Empty value to allow nothing<br/>- Otherwise provide a comma separated list of allowed domains |
 | `API_DOCUMENTATION_ENABLED` | Enable API documentation, value can be either `true` or `false`                                                                                                       |
+| `API_PORT`                  | **Optional** — falls back to `3000` if not set                                                                                                                        |
 
 ### Azure
 
