@@ -1,5 +1,5 @@
 # Base
-FROM --platform=linux/amd64 node:20.12.1-alpine AS base
+FROM --platform=linux/amd64 node:24.11.0-alpine AS base
 RUN mkdir /api && chown node:node /api
 WORKDIR /api
 USER node
@@ -7,13 +7,13 @@ USER node
 # Dependencies
 FROM base as dependencies
 COPY .npmrc package*.json ./
-RUN npm ci --production
+RUN npm ci --omit=dev --ignore-scripts
 
 # Build
 FROM base AS build
 COPY package*.json tsconfig*.json nest-cli.json ./
 RUN npm ci
-COPY src ./api
+COPY src ./src
 RUN npm run build
 
 # Run

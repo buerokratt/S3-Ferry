@@ -1,15 +1,13 @@
-# S3-Ferry
+# Storage-Ferry
 
-A generic service to trasnfer files to and from any S3 platform
-
----
+A generic service to transfer files between different storage backends (local filesystem, S3, Azure Blob, etc.)
 
 ## Local Development
 
-To develop the S3 Ferry, it's recommended to have [nvm](https://github.com/nvm-sh/nvm) installed, which will ensure you
+To develop the Storage Ferry, it's recommended to have [nvm](https://github.com/nvm-sh/nvm) installed, which will ensure you
 have the correct node and npm versions.
 
-```
+```sh
 # Install the required node version
 nvm install
 
@@ -19,20 +17,18 @@ nvm use
 # Install node dependencies
 npm install
 
-# Run the locakstack container
-docker compose up localstack
+# Run the localstack and azurite containers
+docker compose up localstack azurite
 
 # Run the API in development mode
 npm run start:dev
 ```
 
----
-
 ## Coding Standards
 
 Linting and formatting is done with [ESLint](https://eslint.org/) and [Prettier](https://prettier.io/).
 
-```
+```sh
 # Run eslint
 npm run lint:check
 
@@ -40,24 +36,22 @@ npm run lint:check
 npm run format:check
 ```
 
----
-
 ## Running Tests
 
-API endpoints are covered with basic e2e tests written with [Jest](https://jestjs.io/).
-
-```
-# Run e2e tests locally
+```sh
+# Run localstack and azurite - e2e tests will fail otherwise
+docker compose up localstack azurite
+# Run unit tests
+npm run test
+# Run e2e tests
 npm run test:e2e
 ```
 
----
-
 ## Docker
 
-You can run the S3 Ferry inside docker. The API will be exposed at `http://localhost:3000`.
+You can run the Storage Ferry inside docker. The API will be exposed at `http://localhost:3000`.
 
-```
+```sh
 # Build the docker image
 docker compose build
 
@@ -65,28 +59,212 @@ docker compose build
 docker compose up
 ```
 
----
-
-## Documentation
+## Swagger Documentation
 
 Automatically generated API documentation can be found
 at [http://localhost:3000/documentation](http://localhost:3000/documentation)
 
----
+## Endpoints
+
+### Request Body Validation
+
+All endpoints that accept file location data validate the following:
+
+- `files`: Must be a non-empty array of file location objects
+- Each file location object requires:
+  - `storageAccountId`: Must be a string starting with `azure-` prefix (currently only Azure Blob Storage is supported)
+  - `container`: Must be a string matching path constraints (alphanumeric, dashes, dots, underscores, and forward slashes only; no path traversal sequences)
+  - `fileName`: Must be a string matching the same path constraints as `container`
+- For create operations, `content` must be a non-empty string
+
+Failing the validation will result in a `400` Bad Request error.
+
+### GET `/v1/storage-accounts`
+
+Lists all available storage accounts configured in the system. You can use these IDs to make requests to the other endpoints.
+
+**Response:**
+
+```json
+[
+  { "id": "azure-buerokratt8481675820" },
+  { "id": "azure-buerokratt1234567890" },
+  { "id": "azure-buerokratt9876543210" }
+]
+```
+
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                              |
+| ----------- | ------------------------------------------------------------------------ |
+| `500`       | Unexpected internal server error occurred while listing storage accounts |
+
+All errors are also logged in server logs.
+
+### GET `/v1/files`
+
+Lists files from either local filesystem storage or a keyed S3 configuration.
+
+**Query parameters:**
+
+- `type`: Required. Use `FS` to list local files or `S3` to list remote files
+- `configKey`: Optional for `type=FS` and `type=S3`; when omitted, the default config is used. It is omitted for `type=AZURE`.
+
+**Behavior notes:**
+
+- `type=FS` lists files from the selected keyed local filesystem root, or the default local filesystem root when `configKey` is omitted
+- `type=S3` lists files from the selected S3 config, or the `default` config when `configKey` is omitted
+
+> [!NOTE]
+> **Future**: S3 pagination is currently handled behind the scenes using continuation tokens. This is not exposed in the API request yet.
+
+### POST `/v1/files/create`
+
+Creates a file in storage at one or more specified locations. The same content is used for all file locations.
+
+**Request body:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-buerokratt8481675820",
+      "container": "my-container",
+      "fileName": "path/to/file.json"
+    }
+  ],
+  "content": "[{\"id\":1,\"name\":\"item1\"},{\"id\":2,\"name\":\"item2\"}]"
+}
+```
+
+**Request body with multiple locations:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-buerokratt8481675820",
+      "container": "container1",
+      "fileName": "file1.json"
+    },
+    {
+      "storageAccountId": "azure-buerokratt1234567890",
+      "container": "container2",
+      "fileName": "file2.json"
+    }
+  ],
+  "content": "[{\"id\":1,\"name\":\"item1\"},{\"id\":2,\"name\":\"item2\"}]"
+}
+```
+
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `400`       | Bad request - Request body validation failed or storage type not supported (account ID doesn't start with `azure-`) |
+| `404`       | Not found - Storage account not found or container not found                                                        |
+| `500`       | Unexpected internal server error occurred while creating the file                                                   |
+
+All errors are also logged in server logs.
+
+### POST `/v1/files/copy`
+
+Copies a file between local filesystem storage and S3.
+
+**Behavior notes:**
+
+- When `sourceConfigKey` or `destinationConfigKey` is omitted, the keyed FS or S3 flow uses the `default` config
+- For FS-to-S3 copies, `destinationConfigKey` selects both the S3 config and the paired local filesystem source root
+- For S3-to-FS copies, `sourceConfigKey` selects both the S3 config and the paired local filesystem destination root
+- AZURE does not use config keys in these DTOs
+
+### DELETE `/v1/files/delete`
+
+Deletes a file from storage at one or more specified locations.
+
+**Request body:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-buerokratt8481675820",
+      "container": "my-container",
+      "fileName": "path/to/file.json"
+    }
+  ]
+}
+```
+
+**Request body with multiple locations:**
+
+```json
+{
+  "files": [
+    {
+      "storageAccountId": "azure-buerokratt8481675820",
+      "container": "container1",
+      "fileName": "file1.json"
+    },
+    {
+      "storageAccountId": "azure-buerokratt1234567890",
+      "container": "container2",
+      "fileName": "file2.json"
+    }
+  ]
+}
+```
+
+**Response:**
+
+The response body is empty on success (HTTP `200`).
+
+**Note:** See validation rules above. See [Azure Environment Variables](#azure) for information about account configuration.
+
+**Errors:**
+
+| Status Code | Description                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| `400`       | Bad request - Request body validation failed or storage type not supported (account ID doesn't start with `azure-`) |
+| `404`       | Not found - Storage account not found, container not found, or blob not found                                       |
+| `500`       | Unexpected internal server error occurred while deleting the file                                                   |
+
+All errors are also logged in server logs.
 
 ## Environment Variables
 
 Environment variables and their meaning is defined below.
 
+### General
+
 | Variable                    | Description                                                                                                                                                           |
-|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `API_CORS_ORIGIN`           | Specify CORS allowed domains. <br/>- Asterisk (`*`) to allow all<br/>- Empty value to allow nothing<br/>- Otherwise provide a comma separated list of allowed domains |
 | `API_DOCUMENTATION_ENABLED` | Enable API documentation, value can be either `true` or `false`                                                                                                       |
-| `S3_REGION`                 | Endpoint region for the S3 storage                                                                                                                                    |
-| `S3_ENDPOINT_URL`           | Endpoint URL for the S3 storage                                                                                                                                       |
-| `S3_ACCESS_KEY_ID`          | Access key for the S3 storage                                                                                                                                         |
-| `S3_SECRET_ACCESS_KEY`      | Secret access key for the S3 storage                                                                                                                                  |
-| `S3_DATA_BUCKET_NAME`       | Data bucket name for the S3 storage                                                                                                                                   |
-| `S3_DATA_BUCKET_PATH`       | Data bucket path for the S3 storage                                                                                                                                   |
-| `FS_DATA_DIRECTORY_PATH`    | Local filesystem data directory path                                                                                                                                  |
+| `API_PORT`                  | **Optional** — falls back to `3000` if not set                                                                                                                        |
 
+### Azure
+
+| Variable                            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AZURE_ACCOUNT_*_CONNECTION_STRING` | Azure Storage account connection string. The asterisk (`*`) represents a number (e.g., `AZURE_ACCOUNT_1_CONNECTION_STRING`, `AZURE_ACCOUNT_2_CONNECTION_STRING`). You can define multiple accounts by using different numbers. The connection string can include `BlobEndpoint` parameter to use custom endpoints (e.g., Azurite for local development). See `config/test.env` for examples. <br/><br/>**Account ID Generation:** The account ID is generated from the connection string as `azure-{accountName}`, where `accountName` is extracted from the `AccountName` parameter in the connection string (e.g., `AccountName=myaccount` → ID: `azure-myaccount`). If the `AccountName` cannot be extracted from the connection string, the system falls back to using the account number from the environment variable name (e.g., `AZURE_ACCOUNT_1_CONNECTION_STRING` → ID: `azure-1`). |
+
+### S3
+
+| Variable                     | Description                                                                                                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `S3_<KEY>_REGION`            | Endpoint region for the keyed S3 storage configuration                                                                                                                 |
+| `S3_<KEY>_ENDPOINT_URL`      | Endpoint URL for the keyed S3 storage configuration. Can be used with S3-compatible services (e.g., MinIO, DigitalOcean Spaces) by providing a custom endpoint URL. Leave empty to use default AWS S3 endpoints. |
+| `S3_<KEY>_ACCESS_KEY_ID`     | Access key for the keyed S3 storage configuration                                                                                                                      |
+| `S3_<KEY>_SECRET_ACCESS_KEY` | Secret access key for the keyed S3 storage configuration                                                                                                               |
+| `S3_<KEY>_DATA_BUCKET_NAME`  | Data bucket name for the keyed S3 storage configuration                                                                                                                |
+| `S3_<KEY>_DATA_BUCKET_PATH`  | Data bucket path for the keyed S3 storage configuration                                                                                                                |
+| `S3_<KEY>_FS_DATA_DIRECTORY_PATH` | Local filesystem data directory path paired with the keyed S3 storage configuration                                                                               |
+
+Each keyed S3 config also owns its local filesystem root via `S3_<KEY>_FS_DATA_DIRECTORY_PATH`. For example, `S3_DEFAULT_REGION` and `S3_DEFAULT_FS_DATA_DIRECTORY_PATH` configure the `default` S3 entry, and `S3_TEST_REGION` and `S3_TEST_FS_DATA_DIRECTORY_PATH` configure the `test` entry.
+
+- **Highlight:** the `default` config works like the previous single-S3 setup. If you only need one S3 configuration, use the `S3_DEFAULT_*` variables.

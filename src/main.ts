@@ -1,15 +1,18 @@
 process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
 import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
-import { appConfigFactory } from './config';
+import { appConfigFactory } from './common/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const apiConfig = app.get(appConfigFactory.KEY);
+  const apiConfig = app.get<ConfigType<typeof appConfigFactory>>(
+    appConfigFactory.KEY,
+  );
   if (apiConfig.corsOrigin) app.enableCors({ origin: apiConfig.corsOrigin });
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
   app.enableVersioning({ type: VersioningType.URI });
@@ -30,6 +33,6 @@ async function bootstrap() {
     });
   }
 
-  await app.listen(3000);
+  await app.listen(apiConfig.port || 3000);
 }
 bootstrap();
