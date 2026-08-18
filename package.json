@@ -22,11 +22,7 @@
     "test:e2e": "vitest --config ./vitest.config.e2e.mts",
     "test:e2e:run": "vitest run --config ./vitest.config.e2e.mts",
     "prepare": "husky",
-    "changelog": "./generate-changelog.sh",
-    "sync-version": "./sync-version.sh",
-    "bump-patch": "./bump-version.sh patch",
-    "bump-minor": "./bump-version.sh minor",
-    "bump-major": "./bump-version.sh major"
+    "changelog": "./generate-changelog.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1031.0",
