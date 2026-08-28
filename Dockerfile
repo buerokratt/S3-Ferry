@@ -1,5 +1,5 @@
 # Base
-FROM --platform=linux/amd64 node:24.11.0-alpine AS base
+FROM --platform=linux/amd64 node:24.13.0-alpine AS base
 RUN mkdir /api && chown node:node /api
 WORKDIR /api
 USER node
