@@ -71,7 +71,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.58.2",
     "unplugin-swc": "^1.5.9",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24.11.0",
